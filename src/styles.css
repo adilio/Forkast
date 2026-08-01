@@ -426,8 +426,18 @@ input:hover {
   background: var(--surface);
 }
 .auth-panel h2 {
-  margin-bottom: 1.5rem;
   font-size: 1.75rem;
+}
+.auth-panel__primary {
+  display: grid;
+  gap: 1rem;
+  padding-bottom: 2rem;
+}
+.auth-panel__primary > p:not(.kicker, .form-message) {
+  max-width: 38ch;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
 }
 .auth-panel form {
   display: grid;
@@ -442,6 +452,36 @@ input:hover {
 .auth-panel .button {
   width: 100%;
   margin-top: 0.25rem;
+}
+.google-button {
+  gap: 0.7rem;
+}
+.google-mark {
+  display: grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  color: var(--action-hover);
+  background: var(--surface);
+  border-radius: 4px;
+  font-weight: 800;
+}
+.legacy-auth {
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+}
+.legacy-auth summary {
+  min-height: 2.75rem;
+  padding: 0.7rem 0;
+  color: var(--muted);
+  font-weight: 700;
+  cursor: pointer;
+}
+.legacy-auth > p {
+  margin: 0 0 1rem;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  line-height: 1.5;
 }
 .text-button {
   justify-self: start;
@@ -990,6 +1030,12 @@ select {
 }
 .settings-page > section input {
   margin-top: 1rem;
+}
+.settings-page .form-message {
+  margin-top: 1rem;
+}
+.identity-state strong {
+  color: var(--action-hover);
 }
 @keyframes skeleton {
   to {

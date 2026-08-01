@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { useAuth } from '../lib/auth';
+import { authMessage, linkCurrentUserWithGoogle } from '../lib/googleAuth';
 import { callFunction } from '../lib/api';
 import { exportHousehold } from '../lib/data';
 function download(name: string, data: unknown, type = 'application/json') {
@@ -13,11 +14,27 @@ function download(name: string, data: unknown, type = 'application/json') {
   URL.revokeObjectURL(a.href);
 }
 export default function SettingsPage() {
-  const { user, householdId } = useAuth();
+  const { user, householdId, feedback, clearFeedback } = useAuth();
   const [invite, setInvite] = useState('');
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState<'invite' | 'export' | ''>('');
+  const [busy, setBusy] = useState<'google' | 'invite' | 'export' | ''>('');
+  const googleLinked = user?.providerData.some(
+    (provider) => provider.providerId === 'google.com',
+  );
+  async function linkGoogle() {
+    if (!auth || !user) return;
+    setError('');
+    setStatus('');
+    clearFeedback();
+    setBusy('google');
+    try {
+      await linkCurrentUserWithGoogle(user);
+    } catch (e) {
+      setError(authMessage(e));
+      setBusy('');
+    }
+  }
   async function makeInvite() {
     setBusy('invite');
     setError('');
@@ -89,6 +106,42 @@ export default function SettingsPage() {
         <h1>Settings</h1>
         <p>Signed in as {user?.email}</p>
       </header>
+      <section>
+        <h2>Google account</h2>
+        {googleLinked ? (
+          <p className="identity-state">
+            <strong>Google linked.</strong> This Google identity opens the same Forkast
+            account and household.
+          </p>
+        ) : (
+          <>
+            <p>
+              Link the Google account with the same email before the temporary password
+              sign-in is removed. This preserves your existing Forkast UID, household,
+              and data.
+            </p>
+            <button
+              className="button button--primary"
+              onClick={linkGoogle}
+              disabled={Boolean(busy)}
+            >
+              {busy === 'google' ? 'Opening Google…' : 'Link Google account'}
+            </button>
+          </>
+        )}
+        {feedback && (
+          <p
+            className={
+              feedback.kind === 'error'
+                ? 'form-message'
+                : 'form-message form-message--success'
+            }
+            role={feedback.kind === 'error' ? 'alert' : 'status'}
+          >
+            {feedback.message}
+          </p>
+        )}
+      </section>
       <section>
         <h2>Invite your spouse</h2>
         <p>Create a private link that works once and expires after 24 hours.</p>

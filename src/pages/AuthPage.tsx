@@ -1,17 +1,25 @@
 import { useState, type FormEvent } from 'react';
-import {
-  createUserWithEmailAndPassword,
-  sendPasswordResetEmail,
-  signInWithEmailAndPassword,
-  updateProfile,
-} from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { useAuth } from '../lib/auth';
 import { auth } from '../lib/firebase';
+import { authMessage, startGoogleSignIn } from '../lib/googleAuth';
 
 export default function AuthPage() {
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const { feedback, clearFeedback } = useAuth();
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
+  async function continueWithGoogle() {
+    if (!auth) return;
+    setBusy(true);
+    setError('');
+    clearFeedback();
+    try {
+      await startGoogleSignIn(auth);
+    } catch (e) {
+      setError(authMessage(e));
+      setBusy(false);
+    }
+  }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!auth) return;
@@ -20,32 +28,9 @@ export default function AuthPage() {
     const password = String(form.get('password'));
     setBusy(true);
     setError('');
-    setNotice('');
+    clearFeedback();
     try {
-      if (mode === 'signup') {
-        const result = await createUserWithEmailAndPassword(auth, email, password);
-        await updateProfile(result.user, { displayName: String(form.get('name')) });
-      } else await signInWithEmailAndPassword(auth, email, password);
-    } catch (e) {
-      setError(authMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function reset() {
-    const email = (
-      document.querySelector<HTMLInputElement>('#email')?.value || ''
-    ).trim();
-    if (!email) {
-      setError('Enter your email first, then choose reset.');
-      return;
-    }
-    setBusy(true);
-    setError('');
-    setNotice('');
-    try {
-      await sendPasswordResetEmail(auth!, email);
-      setNotice('Password reset email sent. Check your inbox.');
+      await signInWithEmailAndPassword(auth, email, password);
     } catch (e) {
       setError(authMessage(e));
     } finally {
@@ -64,74 +49,56 @@ export default function AuthPage() {
         </p>
       </section>
       <section className="auth-panel">
-        <h2>{mode === 'signin' ? 'Welcome back' : 'Create your account'}</h2>
-        <form onSubmit={submit}>
-          {mode === 'signup' && (
-            <label>
-              Name
-              <input name="name" autoComplete="name" required />
-            </label>
-          )}
-          <label>
-            Email
-            <input id="email" name="email" type="email" autoComplete="email" required />
-          </label>
-          <label>
-            Password
-            <input
-              name="password"
-              type="password"
-              autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-              minLength={8}
-              required
-            />
-          </label>
-          {error && (
+        <div className="auth-panel__primary">
+          <p className="kicker">Google sign-in</p>
+          <h2>Welcome to Forkast</h2>
+          <p>
+            Continue with Google to open your household or create a private one of your
+            own.
+          </p>
+          <button
+            className="button button--primary google-button"
+            disabled={busy}
+            onClick={continueWithGoogle}
+          >
+            <span className="google-mark" aria-hidden="true">
+              G
+            </span>
+            {busy ? 'Opening Google…' : 'Continue with Google'}
+          </button>
+          {(error || feedback?.kind === 'error') && (
             <p className="form-message" role="alert">
-              {error}
+              {error || feedback?.message}
             </p>
           )}
-          {notice && (
-            <p className="form-message form-message--success" role="status">
-              {notice}
-            </p>
-          )}
-          <button className="button button--primary" disabled={busy}>
-            {busy ? 'Working…' : mode === 'signin' ? 'Sign in' : 'Create account'}
-          </button>
-        </form>
-        <button
-          className="text-button"
-          onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}
-        >
-          {mode === 'signin'
-            ? 'New to Forkast? Create an account'
-            : 'Already have an account? Sign in'}
-        </button>
-        {mode === 'signin' && (
-          <button className="text-button" onClick={reset}>
-            Reset password
-          </button>
-        )}
+        </div>
+        <details className="legacy-auth">
+          <summary>Existing owner migration</summary>
+          <p>
+            Use the temporary owner password only to link this existing account to
+            Google. New households should continue with Google above.
+          </p>
+          <form onSubmit={submit}>
+            <label>
+              Owner email
+              <input name="email" type="email" autoComplete="email" required />
+            </label>
+            <label>
+              Temporary password
+              <input
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                minLength={8}
+                required
+              />
+            </label>
+            <button className="button button--outline" disabled={busy}>
+              {busy ? 'Signing in…' : 'Sign in to link Google'}
+            </button>
+          </form>
+        </details>
       </section>
     </main>
-  );
-}
-
-function authMessage(error: unknown) {
-  const code =
-    error && typeof error === 'object' && 'code' in error ? String(error.code) : '';
-  const messages: Record<string, string> = {
-    'auth/email-already-in-use': 'That email already has an account. Sign in instead.',
-    'auth/invalid-credential': 'The email or password does not match.',
-    'auth/invalid-email': 'Enter a valid email address.',
-    'auth/network-request-failed':
-      'Forkast could not reach the sign-in service. Check your connection and try again.',
-    'auth/too-many-requests': 'Too many attempts. Wait a moment, then try again.',
-    'auth/weak-password': 'Use a password with at least eight characters.',
-  };
-  return (
-    messages[code] ||
-    'Sign-in could not be completed. Check your details and try again.'
   );
 }

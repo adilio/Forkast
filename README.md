@@ -27,8 +27,11 @@ npm audit --audit-level=high
 
 - Netlify site: `forkast-4dl`; build command `npm run build`; publish `dist`.
 - Firebase project: `forkast-4dl`; Spark plan; Firestore region `us-west1`.
-- Email/password Authentication and Firestore are enabled. Storage, Analytics,
-  Gemini, and Firebase Hosting are intentionally disabled.
+- Google Authentication and Firestore are enabled. Email/password remains enabled
+  only during the existing owner's account-linking window; disable it after the
+  owner has linked Google and verified a Google sign-out/sign-in with the same UID
+  and household. Storage, Analytics, Gemini, and Firebase Hosting are intentionally
+  disabled.
 - Public `VITE_FIREBASE_*` values belong in Netlify. The downloaded Firebase
   service-account JSON belongs only in Netlify as the single-line
   `FIREBASE_SERVICE_ACCOUNT_JSON` environment variable. Never commit it.
@@ -37,6 +40,12 @@ npm audit --audit-level=high
   packaging path.
 - Deploy Firestore changes with `firebase deploy --only firestore` after the
   emulator tests pass.
+- Google sign-in uses full-page redirect on iPhone and the installed PWA. Netlify
+  transparently proxies `/__/auth/*` and `/__/firebase/init.json` to the Firebase
+  auth helper so Safari does not depend on third-party storage. Keep
+  `https://forkast.4dl.ca/__/auth/handler` and the equivalent Netlify fallback
+  handler authorized for the Google OAuth client, and keep both hosts authorized
+  in Firebase Authentication.
 
 The production custom domain is <https://forkast.4dl.ca>.
 

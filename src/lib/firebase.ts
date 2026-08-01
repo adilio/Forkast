@@ -15,7 +15,12 @@ import {
 
 const config = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  authDomain:
+    typeof location !== 'undefined' &&
+    (location.hostname === 'forkast.4dl.ca' ||
+      location.hostname.endsWith('.netlify.app'))
+      ? location.hostname
+      : import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
