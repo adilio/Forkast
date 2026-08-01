@@ -19,6 +19,7 @@ export async function requireUser(request: Request) {
   if (!token)
     throw new Response(JSON.stringify({ message: 'Sign in to continue.' }), {
       status: 401,
+      headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
     });
   return adminAuth.verifyIdToken(token);
 }
