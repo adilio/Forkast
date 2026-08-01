@@ -1,6 +1,28 @@
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+
+// The service worker precaches `index.html` and replays that cached response,
+// headers included, to every installed client. Workbox only refetches it when
+// its content hash changes, so a deploy that changes only response headers —
+// the Content-Security-Policy, for example — would never reach an installed
+// PWA. Stamping the deploy commit into the document ties the precache revision
+// to the deploy rather than to the bundle.
+function buildStamp(): Plugin {
+  const commit = process.env.COMMIT_REF ?? 'local';
+  return {
+    name: 'forkast-build-stamp',
+    transformIndexHtml() {
+      return [
+        {
+          tag: 'meta',
+          attrs: { name: 'forkast-build', content: commit },
+          injectTo: 'head',
+        },
+      ];
+    },
+  };
+}
 
 export default defineConfig({
   build: {
@@ -31,6 +53,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    buildStamp(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['forkast-mark.svg', 'apple-touch-icon.png'],
