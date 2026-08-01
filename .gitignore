@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+coverage/
+playwright-report/
+test-results/
+.netlify/
+.DS_Store
+*.tsbuildinfo
