@@ -825,7 +825,40 @@ On the two actual iPhones:
 | Plan to Eat export shape differs | Inspect the real CSV privately, preview mappings, preserve unknown fields, never commit the data. |
 | Project expands before it is useful | Enforce the YAGNI boundary and milestone exit criteria; schedule deferred work only from observed use. |
 
-## 13. Post-MVP decision queue
+## 13. Stage 2 — post-MVP enhancements
+
+### Google sign-in
+
+Add Google as an optional Firebase Authentication provider after the MVP launch.
+Keep email/password sign-in available so authentication remains recoverable and
+does not force either household member to migrate.
+
+Implementation requirements:
+
+- Enable the Google provider in Firebase Authentication and configure its
+  support email and authorized production/local domains.
+- Add a clear “Continue with Google” action to the existing authentication
+  screen, using the Firebase Web SDK. Use the mobile-appropriate redirect flow
+  and verify it in Safari and the installed iPhone PWA; use a popup only where it
+  is more reliable and accessible.
+- Allow an already signed-in email/password user to explicitly link their Google
+  credential. Account linking must preserve the existing Firebase UID so the
+  user's household membership and data access do not change.
+- Handle provider collisions and cancelled/blocked authentication honestly. Do
+  not create or merge household data implicitly when a Google credential is
+  already attached to another Firebase user.
+- Extend auth error mapping, unit/browser coverage, operational documentation,
+  and production acceptance checks. No additional Google API scopes are needed.
+- Confirm sign-in persistence, sign-out, password fallback, household bootstrap,
+  and invite redemption with both linked existing users and new Google users.
+
+Exit criteria: both household members can link Google to their existing Forkast
+accounts and subsequently sign in with either Google or email/password without
+changing Firebase UID, household membership, or access. A new invited user can
+also join using Google sign-in. This is Stage 2 convenience work and does not
+block the current MVP definition of complete.
+
+### Evidence-led decision queue
 
 After at least two weeks of household use, review evidence in this order:
 
