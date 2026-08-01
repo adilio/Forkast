@@ -422,6 +422,7 @@ input:hover {
 .auth-panel {
   display: grid;
   align-content: center;
+  justify-content: center;
   padding: clamp(1.5rem, 6vw, 5rem);
   background: var(--surface);
 }
@@ -430,8 +431,8 @@ input:hover {
 }
 .auth-panel__primary {
   display: grid;
-  gap: 1rem;
-  padding-bottom: 2rem;
+  gap: 0.75rem;
+  max-inline-size: 24rem;
 }
 .auth-panel__primary > p:not(.kicker, .form-message) {
   max-width: 38ch;
@@ -446,9 +447,10 @@ input:hover {
 }
 .auth-panel .button {
   width: 100%;
-  margin-top: 0.25rem;
+  margin-top: 0.5rem;
 }
-.auth-panel__note {
+.auth-panel__primary > .auth-panel__note {
+  margin-top: 0.25rem;
   font-size: 0.9375rem;
 }
 .google-button {
