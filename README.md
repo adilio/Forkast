@@ -41,8 +41,8 @@ npm audit --audit-level=high
 - Deploy Firestore changes with `firebase deploy --only firestore` after the
   emulator tests pass.
 - Google sign-in uses full-page redirect on iPhone and the installed PWA. Netlify
-  transparently proxies `/__/auth/*` and `/__/firebase/init.json` to the Firebase
-  auth helper so Safari does not depend on third-party storage. Keep
+  transparently proxies `/__/auth/*` to the Firebase auth helper so Safari does
+  not depend on third-party storage. Keep
   `https://forkast.4dl.ca/__/auth/handler` and the equivalent Netlify fallback
   handler authorized for the Google OAuth client, and keep both hosts authorized
   in Firebase Authentication.

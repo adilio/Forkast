@@ -13,12 +13,6 @@
   force = true
 
 [[redirects]]
-  from = "/__/firebase/init.json"
-  to = "https://forkast-4dl.firebaseapp.com/__/firebase/init.json"
-  status = 200
-  force = true
-
-[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
