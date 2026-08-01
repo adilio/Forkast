@@ -1,7 +1,9 @@
 import {
   GoogleAuthProvider,
   getRedirectResult,
+  linkWithPopup,
   linkWithRedirect,
+  signInWithPopup,
   signInWithRedirect,
   unlink,
   type Auth,
@@ -42,14 +44,68 @@ function clearRedirectMemory() {
   sessionStorage.removeItem(LINK_EMAIL_KEY);
 }
 
+export function usesRedirectFlow(userAgent: string, standalone: boolean) {
+  return /iPad|iPhone|iPod/i.test(userAgent) || standalone;
+}
+
+function shouldRedirect() {
+  const iosStandalone = Boolean(
+    (navigator as Navigator & { standalone?: boolean }).standalone,
+  );
+  const displayModeStandalone =
+    window.matchMedia?.('(display-mode: standalone)').matches ?? false;
+  return usesRedirectFlow(navigator.userAgent, iosStandalone || displayModeStandalone);
+}
+
 export async function startGoogleSignIn(auth: Auth) {
+  if (!shouldRedirect()) {
+    await signInWithPopup(auth, googleProvider());
+    return;
+  }
   rememberRedirect('signin');
   await signInWithRedirect(auth, googleProvider());
 }
 
-export async function linkCurrentUserWithGoogle(user: User) {
+async function validateLinkedUser(
+  user: User,
+  originalUid: string | null,
+  originalEmail: string | null,
+): Promise<AuthFeedback> {
+  const googleIdentity = user.providerData.find(
+    (provider) => provider.providerId === GoogleAuthProvider.PROVIDER_ID,
+  );
+  if (originalUid && user.uid !== originalUid) {
+    throw new Error('forkast/linked-account-changed');
+  }
+  if (
+    originalEmail &&
+    googleIdentity?.email &&
+    googleIdentity.email.toLowerCase() !== originalEmail.toLowerCase()
+  ) {
+    try {
+      await unlink(user, GoogleAuthProvider.PROVIDER_ID);
+    } catch {
+      throw new Error('forkast/google-mismatch-unlink-failed');
+    }
+    throw new Error('forkast/google-email-mismatch');
+  }
+  return {
+    kind: 'success',
+    message:
+      'Google is linked to this Forkast account. Sign out, then continue with Google to verify access before the password option is retired.',
+  };
+}
+
+export async function linkCurrentUserWithGoogle(
+  user: User,
+): Promise<AuthFeedback | null> {
+  if (!shouldRedirect()) {
+    const result = await linkWithPopup(user, googleProvider(user.email));
+    return validateLinkedUser(result.user, user.uid, user.email);
+  }
   rememberRedirect('link', user);
   await linkWithRedirect(user, googleProvider(user.email));
+  return null;
 }
 
 export async function finishGoogleRedirect(auth: Auth): Promise<AuthFeedback | null> {
@@ -62,29 +118,7 @@ export async function finishGoogleRedirect(auth: Auth): Promise<AuthFeedback | n
     if (intent === 'link') {
       const originalUid = sessionStorage.getItem(LINK_UID_KEY);
       const originalEmail = sessionStorage.getItem(LINK_EMAIL_KEY);
-      const googleIdentity = result.user.providerData.find(
-        (provider) => provider.providerId === GoogleAuthProvider.PROVIDER_ID,
-      );
-      if (originalUid && result.user.uid !== originalUid) {
-        throw new Error('forkast/linked-account-changed');
-      }
-      if (
-        originalEmail &&
-        googleIdentity?.email &&
-        googleIdentity.email.toLowerCase() !== originalEmail.toLowerCase()
-      ) {
-        try {
-          await unlink(result.user, GoogleAuthProvider.PROVIDER_ID);
-        } catch {
-          throw new Error('forkast/google-mismatch-unlink-failed');
-        }
-        throw new Error('forkast/google-email-mismatch');
-      }
-      return {
-        kind: 'success',
-        message:
-          'Google is linked to this Forkast account. Sign out, then continue with Google to verify access before the password option is retired.',
-      };
+      return await validateLinkedUser(result.user, originalUid, originalEmail);
     }
 
     return { kind: 'success', message: 'Signed in with Google.' };

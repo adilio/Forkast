@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const firebaseMocks = vi.hoisted(() => ({
   getRedirectResult: vi.fn(),
+  linkWithPopup: vi.fn(),
   linkWithRedirect: vi.fn(),
+  signInWithPopup: vi.fn(),
   signInWithRedirect: vi.fn(),
   unlink: vi.fn(),
 }));
@@ -20,6 +22,7 @@ import {
   finishGoogleRedirect,
   linkCurrentUserWithGoogle,
   startGoogleSignIn,
+  usesRedirectFlow,
 } from './googleAuth';
 
 beforeEach(() => {
@@ -52,26 +55,44 @@ describe('Google authentication recovery messages', () => {
     );
   });
 
-  it('starts Google sign-in with a remembered redirect intent', async () => {
+  it('uses a popup for desktop Google sign-in', async () => {
     const auth = { name: 'auth' };
     await startGoogleSignIn(auth as never);
 
-    expect(sessionStorage.getItem('forkast:google-redirect-intent')).toBe('signin');
-    expect(firebaseMocks.signInWithRedirect).toHaveBeenCalledWith(
+    expect(firebaseMocks.signInWithPopup).toHaveBeenCalledWith(
       auth,
       expect.any(Object),
     );
+    expect(firebaseMocks.signInWithRedirect).not.toHaveBeenCalled();
   });
 
   it('links Google to the signed-in user rather than creating another user', async () => {
-    const user = { uid: 'original-uid', email: 'owner@example.test' };
-    await linkCurrentUserWithGoogle(user as never);
+    const user = {
+      uid: 'original-uid',
+      email: 'owner@example.test',
+      providerData: [],
+    };
+    firebaseMocks.linkWithPopup.mockResolvedValue({
+      user: {
+        ...user,
+        providerData: [{ providerId: 'google.com', email: 'owner@example.test' }],
+      },
+    });
 
-    expect(sessionStorage.getItem('forkast:google-link-uid')).toBe('original-uid');
-    expect(firebaseMocks.linkWithRedirect).toHaveBeenCalledWith(
-      user,
-      expect.any(Object),
+    await expect(linkCurrentUserWithGoogle(user as never)).resolves.toMatchObject({
+      kind: 'success',
+    });
+
+    expect(firebaseMocks.linkWithPopup).toHaveBeenCalledWith(user, expect.any(Object));
+    expect(firebaseMocks.linkWithRedirect).not.toHaveBeenCalled();
+  });
+
+  it('keeps redirect auth for iPhone and installed PWAs', () => {
+    expect(usesRedirectFlow('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0)', false)).toBe(
+      true,
     );
+    expect(usesRedirectFlow('desktop browser', true)).toBe(true);
+    expect(usesRedirectFlow('desktop browser', false)).toBe(false);
   });
 
   it('accepts a linked Google result only for the original UID and email', async () => {

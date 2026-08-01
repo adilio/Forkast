@@ -29,7 +29,9 @@ export default function SettingsPage() {
     clearFeedback();
     setBusy('google');
     try {
-      await linkCurrentUserWithGoogle(user);
+      const result = await linkCurrentUserWithGoogle(user);
+      if (result) setStatus(result.message);
+      setBusy('');
     } catch (e) {
       setError(authMessage(e));
       setBusy('');
