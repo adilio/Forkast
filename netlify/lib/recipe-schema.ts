@@ -1,4 +1,5 @@
 import { load } from 'cheerio';
+import { decodeHTML } from 'entities';
 
 type JsonLd = Record<string, unknown>;
 const asArray = <T>(v: T | T[] | undefined | null): T[] =>
@@ -18,7 +19,7 @@ function recipeNodes(value: unknown): JsonLd[] {
   ];
 }
 function text(value: unknown): string {
-  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'string') return decodeHTML(value).trim();
   if (value && typeof value === 'object' && 'text' in value)
     return text((value as JsonLd).text);
   return '';
@@ -38,7 +39,7 @@ function instructions(value: unknown): string[] {
   });
 }
 function image(value: unknown): string {
-  if (typeof value === 'string') return value;
+  if (typeof value === 'string') return text(value);
   if (Array.isArray(value)) return image(value[0]);
   if (value && typeof value === 'object')
     return text((value as JsonLd).url) || text((value as JsonLd).contentUrl);

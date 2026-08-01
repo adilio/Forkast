@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "cheerio": "^1.2.0",
+    "entities": "^7.0.1",
     "firebase": "^12.7.0",
     "firebase-admin": "^13.10.0",
     "ipaddr.js": "^2.4.0",

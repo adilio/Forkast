@@ -18,4 +18,17 @@ describe('schema.org recipe extraction', () => {
         'https://example.com',
       ),
     ).toBeNull());
+
+  it('decodes HTML entities in untrusted JSON-LD strings', () => {
+    const html = `<script type="application/ld+json">{"@type":"Recipe","name":"Fish &amp; Chips","description":"Crisp &amp; quick","image":"https://example.com/image?a=1&amp;b=2","recipeYield":"2 servings","recipeIngredient":["2 &frac12; cups potatoes"],"recipeInstructions":[{"@type":"HowToStep","text":"Don&#8217;t overcook."}],"recipeCategory":"Dinner &amp; supper"}</script>`;
+
+    expect(extractRecipeFromHtml(html, 'https://example.com/recipe')).toMatchObject({
+      title: 'Fish & Chips',
+      description: 'Crisp & quick',
+      imageUrl: 'https://example.com/image?a=1&b=2',
+      ingredientLines: ['2 ½ cups potatoes'],
+      instructions: ['Don’t overcook.'],
+      tags: ['Dinner & supper'],
+    });
+  });
 });
