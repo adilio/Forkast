@@ -439,11 +439,6 @@ input:hover {
   color: var(--muted);
   line-height: 1.55;
 }
-.auth-panel form {
-  display: grid;
-  gap: 1rem;
-}
-.auth-panel label,
 .onboarding label {
   display: grid;
   gap: 0.45rem;
@@ -452,6 +447,9 @@ input:hover {
 .auth-panel .button {
   width: 100%;
   margin-top: 0.25rem;
+}
+.auth-panel__note {
+  font-size: 0.9375rem;
 }
 .google-button {
   gap: 0.7rem;
@@ -465,23 +463,6 @@ input:hover {
   background: var(--surface);
   border-radius: 4px;
   font-weight: 800;
-}
-.legacy-auth {
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--line);
-}
-.legacy-auth summary {
-  min-height: 2.75rem;
-  padding: 0.7rem 0;
-  color: var(--muted);
-  font-weight: 700;
-  cursor: pointer;
-}
-.legacy-auth > p {
-  margin: 0 0 1rem;
-  color: var(--muted);
-  font-size: 0.9375rem;
-  line-height: 1.5;
 }
 .text-button {
   justify-self: start;
@@ -1033,9 +1014,6 @@ select {
 }
 .settings-page .form-message {
   margin-top: 1rem;
-}
-.identity-state strong {
-  color: var(--action-hover);
 }
 @keyframes skeleton {
   to {

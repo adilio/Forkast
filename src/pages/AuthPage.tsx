@@ -1,5 +1,4 @@
-import { useState, type FormEvent } from 'react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { useState } from 'react';
 import { useAuth } from '../lib/auth';
 import { auth } from '../lib/firebase';
 import { authMessage, startGoogleSignIn } from '../lib/googleAuth';
@@ -17,23 +16,6 @@ export default function AuthPage() {
       await startGoogleSignIn(auth);
     } catch (e) {
       setError(authMessage(e));
-      setBusy(false);
-    }
-  }
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!auth) return;
-    const form = new FormData(event.currentTarget);
-    const email = String(form.get('email'));
-    const password = String(form.get('password'));
-    setBusy(true);
-    setError('');
-    clearFeedback();
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (e) {
-      setError(authMessage(e));
-    } finally {
       setBusy(false);
     }
   }
@@ -71,33 +53,11 @@ export default function AuthPage() {
               {error || feedback?.message}
             </p>
           )}
-        </div>
-        <details className="legacy-auth">
-          <summary>Existing owner migration</summary>
-          <p>
-            Use the temporary owner password only to link this existing account to
-            Google. New households should continue with Google above.
+          <p className="auth-panel__note">
+            Forkast never asks for a password. Google confirms who you are, and your
+            household decides what you can see.
           </p>
-          <form onSubmit={submit}>
-            <label>
-              Owner email
-              <input name="email" type="email" autoComplete="email" required />
-            </label>
-            <label>
-              Temporary password
-              <input
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                minLength={8}
-                required
-              />
-            </label>
-            <button className="button button--outline" disabled={busy}>
-              {busy ? 'Signing in…' : 'Sign in to link Google'}
-            </button>
-          </form>
-        </details>
+        </div>
       </section>
     </main>
   );
