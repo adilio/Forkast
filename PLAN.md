@@ -12,7 +12,7 @@ with the decisions below.
 - Local checkout: `/Users/adil/Code/Forkast`
 - Default and deployment branch: `main`
 - Latest implementation commit at this update:
-  `f736812 Update Google migration handoff`
+  `a8ad062 Rebalance the signed-out sign-in panel`
 - Netlify project: `forkast-4dl`
 - Netlify fallback URL: <https://forkast-4dl.netlify.app>
 - Production URL: <https://forkast.4dl.ca>
@@ -20,12 +20,22 @@ with the decisions below.
   `forkast-4dl.netlify.app`
 - The Google provider, support email, Firebase authorized domains, OAuth
   origins/redirect URIs, and redirect-safe Netlify auth proxy are configured.
-  Production still contains transitional owner-password and Google-linking UI.
-  A controlled linking attempt stopped with `auth/internal-error` before the
-  popup opened. The owner has now clarified that there are no production users
-  or production data to preserve. The password account and test household are
-  disposable; remove all migration/linking paths and launch with ordinary Google
-  sign-in only.
+  The Google-only cutover in Section 13 is implemented and deployed: password
+  sign-in, credential linking, and every migration path are gone from the
+  product, and the signed-out screen offers one **Continue with Google** action.
+- The `auth/internal-error` is diagnosed and fixed. It was never a provider or
+  proxy fault: the site's own Content-Security-Policy used `script-src 'self'`,
+  which refused `https://apis.google.com/js/api.js` — the gapi bootstrap the
+  Firebase SDK loads for both the popup and redirect flows — so the SDK aborted
+  before opening the popup. `f5dbbec` allows that origin in `script-src` and
+  `frame-src`, and the load was confirmed to succeed on the live origin
+  afterwards. Interactive Google sign-in still needs owner consent to complete.
+- A second delivery fault was found and fixed while verifying that CSP change.
+  The service worker precaches `index.html` and replays its cached response
+  headers, and Workbox refetches it only when the document hash changes, so a
+  deploy touching only `netlify.toml` never reached installed clients. `94b182f`
+  stamps Netlify's `COMMIT_REF` into the document, tying the precache revision to
+  the deploy. Header and redirect changes now propagate on the next visit.
 - Firebase project `forkast-4dl` is provisioned on the Spark plan. Email/password
   Authentication remains enabled only as obsolete bootstrap configuration and
   must be disabled during the Google-only cutover. Firestore Standard in
@@ -62,10 +72,9 @@ branches or pull requests.
 - Responsive React/TypeScript/Vite PWA with the cool-paper kitchen-pass visual
   system recorded in `DESIGN.md`; route briefs and the selected design contract
   are preserved in the repository.
-- Google popup/redirect sign-in infrastructure, transitional credential-linking
-  and owner-password paths that now must be deleted, sign-out, persistent
-  sessions, first-household bootstrap, seeded City Market/Costco stores, and
-  one-time household invitations.
+- Google-only popup/redirect sign-in, sign-out, persistent sessions,
+  first-household bootstrap, seeded City Market/Costco stores, and one-time
+  household invitations. No password or account-linking code remains.
 - Recipe list/search/favorites, manual create/edit/delete, focused draft recovery,
   recipe details, source attribution/images, serving scaling, and selected or all
   ingredient transfer to shopping.
@@ -83,8 +92,21 @@ branches or pull requests.
 
 ### Verification completed
 
-- `npm run check` passes: TypeScript, ESLint, Prettier, 30 unit tests, and the
-  production/PWA build.
+- `npm run check` passes: TypeScript, ESLint, Prettier, 29 unit tests, and the
+  production/PWA build. The count fell by one when the linking and migration
+  tests were replaced with Google-only popup, redirect-completion,
+  redirect-failure, and cancellation coverage, plus an assertion that no
+  user-facing auth message mentions a password or linking.
+- The CSP fix was verified against production rather than assumed. Before it, a
+  script element pointing at `https://apis.google.com/js/api.js` on the live
+  origin failed to load and reported `script-src-elem` through a
+  `securitypolicyviolation` event; after the deploy reached the service worker,
+  the same script loaded and exposed `gapi`. The `/__/auth/*` proxy was probed
+  separately and serves `iframe`, `iframe.js`, `experiments.js`, and `handler`
+  correctly, without the app's CSP.
+- The signed-out screen was measured at 1440, 390, and 320px after the Impeccable
+  layout pass: no horizontal overflow, a 52px touch target, and the action column
+  reflowing 383 → 350 → 280px.
 - Six Playwright Chromium/Mobile Safari smoke tests passed, including narrow
   iPhone and desktop flows. Manual visual inspection at 1440, 390, and 320 px
   found no horizontal overflow, console errors, or blocked primary controls.
@@ -126,6 +148,11 @@ branches or pull requests.
 - `30e56cb Use reliable desktop Google auth`
 - `9060e88 Expose safe Google auth diagnostics`
 - `f736812 Update Google migration handoff`
+- `a998c7c Plan clean Google-only launch`
+- `1f49757 Remove password and account-linking sign-in`
+- `f5dbbec Allow Google sign-in through the production CSP`
+- `94b182f Let header-only deploys reach installed clients`
+- `a8ad062 Rebalance the signed-out sign-in panel`
 
 All listed commits were pushed directly to `origin/main`. Firebase Admin was
 kept on the compatible 13.x line because 14.x bundled an ESM-only `jose` path
@@ -138,22 +165,23 @@ after an automatic deploy reported that `postcss@8.5.25` was not indexed.
 
 Start here in a fresh task, in this order:
 
-1. Confirm Git status is clean and `main` is at or beyond `f736812`. Preserve
-   completed product work, but treat the password-only Auth account, its test
-   household, and its records as disposable acceptance fixtures.
-2. Complete the clean Google-only cutover in Section 13 before other acceptance:
-   remove the password form, password Firebase calls, linking action, linking
-   state, migration-only errors/copy, and their tests. Leave one clear
-   **Continue with Google** action, sign-out, and normal onboarding. Keep popup on
-   desktop and redirect on iPhone/installed PWA unless live evidence requires a
-   simpler reliable choice. Use Impeccable for this material auth cleanup and
-   visually verify it, but do not rerun the completed one-time detector.
-3. Deploy the Google-only build, reproduce and diagnose the current
-   `auth/internal-error` through the ordinary sign-in path in a normal browser,
-   and verify a fresh Google user can sign in and create a household. Then disable
-   Firebase Email/Password. Delete the disposable password Auth user and recursively
-   delete only its test household/profile data using privately resolved exact IDs;
-   never record those IDs in Git.
+1. Confirm Git status is clean and `main` is at or beyond `a8ad062`. Steps 2 and
+   3 of the previous checklist — the code cutover and the `auth/internal-error`
+   diagnosis — are complete and deployed. Treat the password-only Auth account,
+   its test household, and its records as disposable acceptance fixtures.
+2. Sign in with the owner's Google account in an ordinary browser. This is the
+   first step that needs interactive Google consent, so it could not be completed
+   without the owner. The blocking CSP fault is fixed, so expect this to succeed;
+   if it does not, read the exact Firebase code from the on-screen message — every
+   unmapped code is surfaced as `Reference: auth/...` — before changing anything.
+   Confirm the new household is created with City Market and Costco seeded, then
+   sign out and back in to verify persistence.
+3. Only after that sign-in succeeds, disable Firebase Email/Password. Doing it
+   earlier would leave the household with no way in, since the disposable
+   password account is currently the only account that has ever signed in. Then
+   delete the disposable password Auth user and recursively delete only its test
+   household/profile data using privately resolved exact IDs; never record those
+   IDs in Git.
 4. Have Marla sign in with Google and redeem a fresh one-time invite. Verify both
    accounts share the new household. Then verify an unrelated Google user without
    an invite creates an isolated household and cannot read the initial household;
@@ -169,7 +197,13 @@ Start here in a fresh task, in this order:
 7. Fix any acceptance blockers, rerun proportional tests, commit/push `main`, and
    update this section. Only then mark the definition of MVP complete.
 
-Already completed in production: Netlify credential setup and redeploy,
+When changing response headers, redirects, or the CSP, remember that installed
+clients only pick them up because each deploy restamps `index.html`; verify a
+header change with a service-worker-served page, not only a `curl` of the origin.
+
+Already completed in production: the Google-only build, the CSP fix that
+unblocked Google sign-in, the build stamp that lets header changes reach
+installed clients, Netlify credential setup and redeploy,
 Firebase CLI authorization, latest Firestore rules/index deployment, disposable
 account creation, household bootstrap, store seeding, invite creation,
 authenticated function access, Google auth code/proxy deployment,
@@ -901,6 +935,17 @@ its household, invitations, and records are disposable acceptance fixtures. The
 launch implementation must delete migration complexity rather than carry it as a
 permanent recovery path.
 
+### Status at this update
+
+Steps 1 through 4 of the sequence below are done and deployed: the migration
+code is gone, one **Continue with Google** action remains, and the
+`auth/internal-error` that blocked step 4 was traced to the site's own CSP and
+fixed rather than worked around. Steps 5 through 8 are the remaining owner work
+and all of them need interactive Google consent. Disabling Email/Password in
+step 5 must wait until a Google sign-in has actually succeeded — the disposable
+password account is still the only account that has ever signed in, so disabling
+it first would lock the household out.
+
 ### Cutover sequence
 
 1. Preserve completed non-auth product work. Privately resolve the exact
@@ -947,7 +992,16 @@ permanent recovery path.
 - Use Impeccable for the material authentication UI change, but do not rerun the
   already completed one-time detector merely because this handoff was updated.
 
-Known cleanup touchpoints at this handoff:
+Two constraints this cutover uncovered, both now enforced in the repository:
+
+- The production CSP must allow `https://apis.google.com` in `script-src` and
+  `frame-src`. The Firebase Auth bundle loads its gapi bootstrap from there for
+  both the popup and redirect flows.
+- Response-header changes only reach installed clients when `index.html` changes,
+  because the service worker precaches the document with its headers. The build
+  stamps `COMMIT_REF` into the document to guarantee that.
+
+The cleanup touchpoints below were all completed in `1f49757`:
 
 - `src/pages/AuthPage.tsx`: remove password imports, state, submit handler, and
   the entire **Existing owner migration** disclosure/form.
@@ -961,9 +1015,12 @@ Known cleanup touchpoints at this handoff:
   Google redirect sign-in.
 - `src/lib/googleAuth.test.ts`: replace linking/migration tests with Google-only
   popup, redirect, cancellation, safe-error, and redirect-completion coverage.
-- Search the whole repository for `password`, `linkCurrentUserWithGoogle`,
-  `Existing owner migration`, migration storage keys, and linking copy before
-  declaring the cutover complete.
+- Searching `src`, `e2e`, `netlify`, `rules`, `public`, and `index.html` for
+  `linkCurrentUserWithGoogle`, `Existing owner migration`, the link storage keys,
+  `linkWithPopup`, `linkWithRedirect`, and `signInWithEmailAndPassword` now
+  returns nothing. The only remaining `password` match in shipped code is the
+  SSRF guard in `netlify/functions/import-recipe.ts`, which rejects credentials
+  embedded in an imported URL and is unrelated to sign-in.
 
 Exit criteria: email/password is disabled in Firebase and password/linking code is
 absent from Forkast; the owner creates a clean household with Google; Marla joins

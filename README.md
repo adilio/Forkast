@@ -28,10 +28,12 @@ npm audit --audit-level=high
 - Netlify site: `forkast-4dl`; build command `npm run build`; publish `dist`.
 - Firebase project: `forkast-4dl`; Spark plan; Firestore region `us-west1`.
 - The Google provider, support email, authorized domains, and OAuth redirect
-  URIs are configured. The temporary email/password account and household are
-  disposable test data: remove the password/linking UI and code, verify ordinary
-  Google sign-in, disable the email/password provider, and delete the disposable
-  records. Storage, Analytics, Gemini, and Firebase Hosting are intentionally
+  URIs are configured. Google is the only sign-in method Forkast ships; no
+  password or account-linking code remains. Two owner steps are still open:
+  verify an ordinary Google sign-in, then disable the email/password provider
+  and delete the disposable password account and its test household. Disable the
+  provider only after a Google sign-in has succeeded, or the household has no way
+  in. Storage, Analytics, Gemini, and Firebase Hosting are intentionally
   disabled.
 - Public `VITE_FIREBASE_*` values belong in Netlify. The downloaded Firebase
   service-account JSON belongs only in Netlify as the single-line
@@ -47,6 +49,15 @@ npm audit --audit-level=high
   `https://forkast.4dl.ca/__/auth/handler` and the equivalent Netlify fallback
   handler authorized for the Google OAuth client, and keep both hosts authorized
   in Firebase Authentication.
+- The Content-Security-Policy in `netlify.toml` must keep allowing
+  `https://apis.google.com` in `script-src` and `frame-src`. Firebase Auth loads
+  its gapi bootstrap from that origin, and without it Google sign-in fails with
+  `auth/internal-error` before the popup opens.
+- Response headers reach installed clients only when `index.html` changes,
+  because the service worker precaches the document and replays its cached
+  headers. Netlify's `COMMIT_REF` is stamped into the document as
+  `<meta name="forkast-build">` so every deploy changes that hash. Do not remove
+  the stamp; a header-only deploy would otherwise never reach an installed PWA.
 
 The production custom domain is <https://forkast.4dl.ca>.
 
