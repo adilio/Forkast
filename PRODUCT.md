@@ -61,9 +61,10 @@ the users to maintain a formal ingredient taxonomy.
   grocery items, offline persistence, and full data export.
 - The stack is React, TypeScript, Vite, Netlify, and Firebase.
 - The product is a responsive PWA, not a native app.
-- Google is the only launch sign-in method. The owner's temporary
-  email/password Firebase account must be linked to Google without changing its
-  Firebase UID or household membership before email/password is disabled.
+- Google is the only launch sign-in method. There are no production users or
+  production household data to migrate; the temporary email/password account
+  and its test household are disposable and must not keep migration or linking
+  code in the launch product.
 - Any Google user may create an isolated household or redeem a valid invite to
   join an existing household. Data never crosses household boundaries.
 - The expected operating cost is $0/month at household usage. MVP preserves

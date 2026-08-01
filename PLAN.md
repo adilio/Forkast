@@ -12,26 +12,25 @@ with the decisions below.
 - Local checkout: `/Users/adil/Code/Forkast`
 - Default and deployment branch: `main`
 - Latest implementation commit at this update:
-  `9060e88 Expose safe Google auth diagnostics`
+  `f736812 Update Google migration handoff`
 - Netlify project: `forkast-4dl`
 - Netlify fallback URL: <https://forkast-4dl.netlify.app>
 - Production URL: <https://forkast.4dl.ca>
 - Cloudflare DNS: DNS-only CNAME `forkast.4dl.ca` to
   `forkast-4dl.netlify.app`
-- The Google migration UI and redirect-safe Netlify auth proxy are deployed.
-  Production presents Google as the primary sign-in, retains only a disclosed
-  temporary owner-password fallback, and gives the signed-in owner an explicit
-  credential-linking action. The Google provider, support email, Firebase
-  authorized domains, and OAuth origins/redirect URIs are configured. A live
-  owner linking attempt currently stops safely with `auth/internal-error` before
-  the Google popup opens; the owner record still has only its password provider.
-  Do not remove the fallback or disable password auth before the owner links and
-  verifies Google re-entry.
+- The Google provider, support email, Firebase authorized domains, OAuth
+  origins/redirect URIs, and redirect-safe Netlify auth proxy are configured.
+  Production still contains transitional owner-password and Google-linking UI.
+  A controlled linking attempt stopped with `auth/internal-error` before the
+  popup opened. The owner has now clarified that there are no production users
+  or production data to preserve. The password account and test household are
+  disposable; remove all migration/linking paths and launch with ordinary Google
+  sign-in only.
 - Firebase project `forkast-4dl` is provisioned on the Spark plan. Email/password
-  Authentication is temporarily enabled for the owner's bootstrap account.
-  Firestore Standard in `us-west1` is enabled. Storage, Analytics, Gemini, and
-  Firebase Hosting are intentionally disabled. The launch target is now Google
-  sign-in only; see the continuation checklist and Section 13.
+  Authentication remains enabled only as obsolete bootstrap configuration and
+  must be disabled during the Google-only cutover. Firestore Standard in
+  `us-west1` is enabled. Storage, Analytics, Gemini, and Firebase Hosting are
+  intentionally disabled. See the continuation checklist and Section 13.
 - Public Firebase web configuration is set for local/Netlify use. The private
   `FIREBASE_SERVICE_ACCOUNT_JSON` is installed as a protected, production-only
   Netlify secret and privileged functions now work. Netlify Free does not allow
@@ -43,9 +42,10 @@ with the decisions below.
 - Firebase CLI is authenticated. The current `firestore.rules` and indexes were
   deployed successfully and the Firebase Console visibly confirmed the
   `createdBy`-integrity revision published at 2026-08-01 10:13 local time.
-- The owner created a real production Firebase account. Household bootstrap now
-  succeeds, City Market and Costco were seeded, and invite creation returned a
-  valid one-time 24-hour link. Invite redemption still needs Marla's account.
+- A disposable production acceptance account proved household bootstrap, seeded
+  City Market and Costco, and created a valid one-time 24-hour invite. No real
+  user relies on that UID, household, invite, or data. Clean Google-only owner,
+  Marla, and isolation acceptance remains outstanding.
 - Authenticated live website import reached the production function. Allrecipes
   refused the server fetch, and Forkast correctly preserved the source URL and
   opened the recoverable manual editor. Budget Bytes and Sally's Baking produced
@@ -62,9 +62,10 @@ branches or pull requests.
 - Responsive React/TypeScript/Vite PWA with the cool-paper kitchen-pass visual
   system recorded in `DESIGN.md`; route briefs and the selected design contract
   are preserved in the repository.
-- Google redirect sign-in, safe owner credential linking, a temporary migration-
-  only owner-password fallback, sign-out, persistent sessions, first-household
-  bootstrap, seeded City Market/Costco stores, and one-time household invitations.
+- Google popup/redirect sign-in infrastructure, transitional credential-linking
+  and owner-password paths that now must be deleted, sign-out, persistent
+  sessions, first-household bootstrap, seeded City Market/Costco stores, and
+  one-time household invitations.
 - Recipe list/search/favorites, manual create/edit/delete, focused draft recovery,
   recipe details, source attribution/images, serving scaling, and selected or all
   ingredient transfer to shopping.
@@ -91,7 +92,8 @@ branches or pull requests.
   `30692586571` was green after fixing test discovery; later commits
   `a033fef` and `c1d49ac` also completed green verification runs. Workflow run
   `30693089349` for `d17202f` completed green in both `verify` and `rules` jobs.
-  Workflow run `30714565583` for `9060e88` also completed green.
+  Workflow runs `30714565583` for `9060e88` and `30714681384` for `f736812`
+  also completed green.
 - `npm audit --audit-level=high` passes. Twelve known moderate transitive issues
   remain in development/administrative tooling; the offered forced downgrade is
   breaking and was intentionally not applied.
@@ -102,10 +104,10 @@ branches or pull requests.
 - The production app, manifest, icons, cache/security headers, and anonymous
   function boundary were probed. The import function correctly returns
   `401 {"message":"Sign in to continue."}` rather than crashing.
-- The owner UID and household membership baseline were verified privately using
-  one-way hashes. The production export action completed, and the backup,
+- The disposable acceptance UID and household baseline were verified privately
+  using one-way hashes. The production export action completed, and the backup,
   portable recipe, manifest, and two-store structure validated without printing
-  or committing household data.
+  or committing household data. None of this test data needs migration.
 
 ### Delivery history
 
@@ -123,6 +125,7 @@ branches or pull requests.
 - `f4a6371 Update Google migration handoff`
 - `30e56cb Use reliable desktop Google auth`
 - `9060e88 Expose safe Google auth diagnostics`
+- `f736812 Update Google migration handoff`
 
 All listed commits were pushed directly to `origin/main`. Firebase Admin was
 kept on the compatible 13.x line because 14.x bundled an ESM-only `jose` path
@@ -135,41 +138,50 @@ after an automatic deploy reported that `postcss@8.5.25` was not indexed.
 
 Start here in a fresh task, in this order:
 
-1. Confirm Git status is clean and `main` is at or beyond `9060e88`. Preserve
-   the working production household and do not create a replacement owner.
-2. Finish the staged Google-only launch migration in Section 13. Provider setup,
-   support email, authorized domains, and OAuth origins/redirect URIs are already
-   complete. Diagnose the live `auth/internal-error` that occurs before the
-   desktop Google popup opens, then use Forkast Settings to link the matching
-   Google identity, sign out, and sign back in with Google. Compare the same
-   private UID and household baseline, then remove the temporary password UI and
-   disable the provider. Let Marla redeem a fresh invite with Google and verify
-   an unrelated Google user creates an isolated household; remove only synthetic
-   acceptance data afterward.
-3. Finish production function acceptance: redeem a fresh one-time invite with
-   Marla and verify successful authenticated extraction on representative live
-   recipe sites. The Allrecipes refusal/fallback path is already verified.
-4. Run the private/physical acceptance work that cannot be automated: real Plan
+1. Confirm Git status is clean and `main` is at or beyond `f736812`. Preserve
+   completed product work, but treat the password-only Auth account, its test
+   household, and its records as disposable acceptance fixtures.
+2. Complete the clean Google-only cutover in Section 13 before other acceptance:
+   remove the password form, password Firebase calls, linking action, linking
+   state, migration-only errors/copy, and their tests. Leave one clear
+   **Continue with Google** action, sign-out, and normal onboarding. Keep popup on
+   desktop and redirect on iPhone/installed PWA unless live evidence requires a
+   simpler reliable choice. Use Impeccable for this material auth cleanup and
+   visually verify it, but do not rerun the completed one-time detector.
+3. Deploy the Google-only build, reproduce and diagnose the current
+   `auth/internal-error` through the ordinary sign-in path in a normal browser,
+   and verify a fresh Google user can sign in and create a household. Then disable
+   Firebase Email/Password. Delete the disposable password Auth user and recursively
+   delete only its test household/profile data using privately resolved exact IDs;
+   never record those IDs in Git.
+4. Have Marla sign in with Google and redeem a fresh one-time invite. Verify both
+   accounts share the new household. Then verify an unrelated Google user without
+   an invite creates an isolated household and cannot read the initial household;
+   remove only synthetic isolation-test data afterward.
+5. Finish production function acceptance with the Google accounts and verify
+   successful authenticated extraction on representative live recipe sites. The
+   Allrecipes refusal/fallback path is already verified.
+6. Run the private/physical acceptance work that cannot be automated: real Plan
    to Eat CSV import and report review, common live recipe sites, Save to Forkast
    Shortcut on Marla's iPhone, two-account realtime/offline reconciliation,
    export inspection, PWA install/persistent login on both iPhones, and one week
    of household use. Do not commit private CSV, recipe, account, or export data.
-5. Fix any acceptance blockers, rerun proportional tests, commit/push `main`, and
+7. Fix any acceptance blockers, rerun proportional tests, commit/push `main`, and
    update this section. Only then mark the definition of MVP complete.
 
 Already completed in production: Netlify credential setup and redeploy,
-Firebase CLI authorization, latest Firestore rules/index deployment, owner
+Firebase CLI authorization, latest Firestore rules/index deployment, disposable
 account creation, household bootstrap, store seeding, invite creation,
-authenticated function access, Google migration code/proxy deployment,
+authenticated function access, Google auth code/proxy deployment,
 production export structure validation, two successful public-site extractions,
 and the expected live-site failure recovery path. Anonymous import still returns
 no-store HTTP 401 JSON.
 
-The remaining owner/private inputs are owner Google consent after the popup
-resolver is fixed, the second household Google account plus an unrelated
-acceptance account, household recipe sites and Plan to Eat CSV, two physical
-iPhones, downloaded-export spot inspection, and the one-week usage period. Exact
-account email addresses are intentionally not recorded in the repository.
+The remaining owner/private inputs are interactive Google consent for the owner
+and Marla, an unrelated acceptance account, household recipe sites and Plan to
+Eat CSV, two physical iPhones, downloaded-export spot inspection, and the one-week
+usage period. Exact account email addresses are intentionally not recorded in the
+repository.
 
 ### Autonomous execution mandate
 
@@ -249,7 +261,7 @@ unworkable.
 | Form factor | Responsive installable PWA | No App Store, native wrapper, or Apple Developer account is needed. |
 | Hosting | Netlify | Explicit preference; project and custom domain already exist. |
 | API | Netlify Functions | Required only for securely fetching third-party recipe pages and a few privileged household operations. |
-| Authentication | Google-only Firebase Authentication | Forkast stores no passwords. Existing owner data is preserved by linking Google to the current UID before disabling email/password. Any Google user may create an isolated household or redeem an invite. |
+| Authentication | Google-only Firebase Authentication | Forkast stores no passwords. There are no production users to migrate, so all password and credential-linking paths are removed. Any Google user may create an isolated household or redeem an invite. |
 | Primary data | Cloud Firestore | Realtime collaboration and built-in offline write queuing remove the need for a custom sync engine. |
 | Images in MVP | Preserve the source image URL; no uploads | Avoids Firebase Storage billing setup and image-processing work until local image ownership is proven necessary. |
 | Image uploads later | Firebase Storage, only if needed | Explicit platform preference, but it requires the Blaze billing plan even when usage stays within no-cost quotas. |
@@ -566,11 +578,9 @@ useful error instead of attempting an oversized write.
 
 - Launch with Google as the only sign-in method and browser-local persistence.
   Do not collect or store Forkast passwords and do not add SMS or magic links.
-- Migrate the owner's temporary email/password account by explicitly linking the
-  matching Google credential while signed in. Verify the Firebase UID and
-  `users/{uid}.householdId` before and after linking.
-- Keep email/password enabled only during that migration window. Disable it and
-  remove its UI after Google sign-out/sign-in restores the same UID and data.
+- There are no production users or data to migrate. Remove password auth and
+  credential-linking logic completely; the disposable bootstrap account and
+  household may be deleted after exact targets are resolved privately.
 - The first user creates the household through an authenticated Netlify
   Function and becomes owner. Keeping bootstrap writes server-side avoids a
   permissive special case in Firestore rules.
@@ -731,10 +741,12 @@ iPhone handoff from Share Sheet to the correct import URL is acceptable.
 ### Milestone 1 — Firebase, household, and security
 
 - Create separate Firebase production and local-emulator configuration.
-- Initially enable email/password Auth for bootstrap and Firestore; do not
-  enable Storage. This historical implementation step is superseded for launch
-  by the Google-only migration in Section 13.
-- Add sign-up, sign-in, sign-out, password reset, and persistent sessions.
+- Email/password Auth was initially enabled for bootstrap and Firestore; do not
+  enable Storage. This historical implementation is disposable and must be
+  removed for the Google-only launch cutover in Section 13.
+- Password sign-up/sign-in/reset and Google sign-in were implemented during
+  bootstrap. Retain Google sign-in, sign-out, and persistence; remove every
+  password path for launch.
 - Add first-household creation, seed City Market and Costco, and implement the
   one-time spouse invite flow.
 - Implement Firestore converters/schemas and security rules.
@@ -872,56 +884,60 @@ On the two actual iPhones:
 | Third-party image URLs break | Graceful placeholder; consider Firebase Storage only after this becomes a real problem. |
 | Free tiers change or are exhausted | Keep exports portable, monitor dashboards, keep Netlify recharge off, and avoid Storage/Blaze in MVP. |
 | Plan to Eat export shape differs | Inspect the real CSV privately, preview mappings, preserve unknown fields, never commit the data. |
-| Google migration locks out the owner | Link Google while the owner is signed in, verify the same UID and household after Google re-entry, and only then disable email/password. |
+| Google sign-in blocks launch | Keep the provider/origin/proxy configuration explicit, test popup and iPhone redirect in ordinary browsers, surface safe error codes, and do not retain a password fallback. |
 | Friends can see another household | Keep membership-based Firestore rules authoritative and verify a separate Google-created household cannot read the initial household. |
 | Project expands before it is useful | Enforce the YAGNI boundary and milestone exit criteria; schedule deferred work only from observed use. |
 
-## 13. Google-only launch authentication
+## 13. Google-only launch cutover
 
 The owner has replaced the earlier optional Stage 2 enhancement with a launch
 requirement: Google is Forkast's only sign-in method. Forkast must not collect or
 store passwords. The initial household is the owner and Marla, while friends may
 sign in with Google and create their own isolated households.
 
-This migration now precedes the remaining private/physical MVP acceptance. The
-temporary email/password provider stays enabled only long enough to link the
-owner's existing production account safely.
+There are no production users or production data to migrate. Earlier instructions
+to preserve and link the temporary password account are superseded. That account,
+its household, invitations, and records are disposable acceptance fixtures. The
+launch implementation must delete migration complexity rather than carry it as a
+permanent recovery path.
 
-### Migration sequence
+### Cutover sequence
 
-1. Record the existing owner's Firebase UID and `householdId` privately for
-   before/after comparison. Never commit account identifiers.
-2. Enable the Google provider in Firebase Authentication, configure the support
-   email, and confirm `forkast.4dl.ca`, the Netlify fallback domain, and local
-   development origins are authorized.
-3. Ship an explicit **Link Google account** action for the already signed-in
-   owner. Use Firebase credential linking, never a second account plus data copy.
-4. After linking, sign out and sign back in with Google. Confirm the UID,
-   household membership, recipes, stores, and data access are unchanged.
-5. Replace the unauthenticated email/password form with one clear **Continue
-   with Google** action. Use redirect on iPhone Safari/installed PWA and a popup
-   only where it is demonstrably more reliable and accessible.
-6. Have Marla sign in as a new Google user and redeem a fresh one-time invite.
+1. Preserve completed non-auth product work. Privately resolve the exact
+   disposable Auth UID and Firestore household/profile paths before cleanup; do
+   not commit or print account identifiers or household data.
+2. Remove the email/password form and Firebase password calls, **Link Google
+   account** action, redirect-link state, UID/email migration validation,
+   migration-only error messages, settings copy, and their tests. Do not leave a
+   hidden fallback or dead account-linking path.
+3. Present one clear **Continue with Google** action to signed-out users. Use a
+   popup on desktop and full-page redirect on iPhone Safari/installed PWA unless
+   ordinary-browser evidence demonstrates a more reliable accessible choice.
+4. Deploy and verify ordinary Google sign-in. Diagnose the existing
+   `auth/internal-error` on this clean sign-in path rather than preserving linking
+   code to work around it. Confirm cancellation, blocked-popup, network, redirect,
+   and provider errors have direct recovery copy.
+5. Disable Firebase Email/Password after the Google-only build is live. Delete
+   the disposable password Auth user and recursively delete only its test
+   profile/household tree. Never use broad or unresolved destructive targets.
+6. Sign in with the owner's Google account, create the new household, and confirm
+   City Market and Costco are seeded. Sign out and sign back in with Google to
+   verify persistent access.
+7. Have Marla sign in as a new Google user and redeem a fresh one-time invite.
    Confirm both members share the same household.
-7. Verify a third Google user with no invite can create a separate household and
+8. Verify a third Google user with no invite can create a separate household and
    cannot read either initial-household member's data. Remove any synthetic test
    household/account created solely for this check.
-8. Disable the Firebase email/password provider and remove sign-up, password,
-   reset-password, and password-fallback UI only after the owner has successfully
-   re-entered through Google. Existing password credentials must not remain a
-   supported login path.
 
 ### Implementation requirements
 
-- Use the Firebase Web SDK's `GoogleAuthProvider`, redirect result handling, and
-  credential-linking APIs. Request only the basic identity scopes Firebase needs;
-  no Google API scopes are required.
-- Preserve the existing owner's Firebase UID. Never rewrite household membership
-  or copy recipes/shopping data to a new UID as a migration shortcut.
-- Treat `auth/account-exists-with-different-credential` as a guided linking case,
-  not permission to merge accounts or households automatically.
+- Use the Firebase Web SDK's `GoogleAuthProvider` and redirect-result handling.
+  Request only the basic identity scopes Firebase needs; no Google API scopes are
+  required.
+- Do not ship password sign-in, sign-up, reset-password, credential-linking,
+  account-copy, UID-preservation, or household-migration code.
 - Handle cancelled, blocked, expired, network, popup, redirect, and provider-
-  collision failures with direct recovery copy that preserves the user's work.
+  collision failures with direct recovery copy.
 - A new Google user without a `users/{uid}` document reaches onboarding and may
   either create an isolated household or redeem a valid invite.
 - Keep Firestore membership enforcement unchanged: authentication proves
@@ -931,11 +947,29 @@ owner's existing production account safely.
 - Use Impeccable for the material authentication UI change, but do not rerun the
   already completed one-time detector merely because this handoff was updated.
 
-Exit criteria: the owner signs in with Google and retains the exact existing UID,
-household membership, and data access; Marla joins that household using Google;
-an unrelated Google user can create a separate isolated household; email/password
-is disabled in Firebase and absent from Forkast; persistent iPhone PWA sessions,
-sign-out/sign-in, household bootstrap, and invite redemption all work.
+Known cleanup touchpoints at this handoff:
+
+- `src/pages/AuthPage.tsx`: remove password imports, state, submit handler, and
+  the entire **Existing owner migration** disclosure/form.
+- `src/pages/SettingsPage.tsx`: remove the Google-linking action, status, and
+  migration copy; keep unrelated invite, export, install, and sign-out controls.
+- `src/lib/googleAuth.ts`: retain ordinary Google sign-in, redirect completion,
+  safe launch-relevant errors, and desktop/iPhone flow selection; remove link
+  imports/functions, link session keys, UID/email validation, unlink rollback,
+  and migration-only messages.
+- `src/lib/auth.tsx`: keep redirect-result completion only as required by normal
+  Google redirect sign-in.
+- `src/lib/googleAuth.test.ts`: replace linking/migration tests with Google-only
+  popup, redirect, cancellation, safe-error, and redirect-completion coverage.
+- Search the whole repository for `password`, `linkCurrentUserWithGoogle`,
+  `Existing owner migration`, migration storage keys, and linking copy before
+  declaring the cutover complete.
+
+Exit criteria: email/password is disabled in Firebase and password/linking code is
+absent from Forkast; the owner creates a clean household with Google; Marla joins
+it with Google; an unrelated Google user creates a separate isolated household;
+persistent iPhone PWA sessions, sign-out/sign-in, household bootstrap, and invite
+redemption all work.
 
 ### Evidence-led decision queue
 
@@ -961,15 +995,15 @@ After at least two weeks of household use, review evidence in this order:
 MVP is complete only when all of the following are true:
 
 Current status: the software and automated criteria are implemented, production
-credentials/rules are live, owner household bootstrap works, and the safe Google
-migration stage is deployed. Provider support-email consent, owner linking and
-Google re-entry, password retirement, the other Google accounts, and the remaining
+credentials/rules are live, disposable household bootstrap was proven, and the
+Google provider/proxy configuration is deployed. The transitional password and
+linking implementation must now be removed. Clean Google sign-in, password-provider
+retirement, fresh household creation, the other Google accounts, and the remaining
 household/physical acceptance criteria below are intentionally not claimed as
 complete. See Section 1 for the exact continuation order.
 
 - The owner and Marla can sign in only with Google and remain signed in on their
-  iPhones; the owner's linked account retains its original Firebase UID and
-  household access.
+  iPhones; neither account depends on a legacy password identity.
 - A friend can create a separate household with Google and cannot access the
   initial household.
 - The Plan to Eat recipe library has been imported with a reviewed error report.
@@ -996,10 +1030,12 @@ Use this prompt after clearing context:
 > acting. Treat `PRODUCT.md` and `PLAN.md` as the product and implementation
 > authorities. Begin with the **Continuation checklist** in Section 1; preserve
 > completed milestone work and do not rerun Impeccable's one-time detector.
-> Implement the Google-only launch migration in Section 13 before the remaining
-> private/physical acceptance. Preserve the existing owner UID and household;
-> disable email/password only after verified Google re-entry. Work autonomously
-> until the full MVP definition of complete is satisfied; do
+> Implement the clean Google-only cutover in Section 13 before the remaining
+> private/physical acceptance. There are no production users or data to migrate:
+> delete all password and credential-linking paths, disable Email/Password after
+> the Google-only build is deployed, and remove only the privately resolved
+> disposable Auth/Firestore fixtures. Work autonomously until the full MVP
+> definition of complete is satisfied; do
 > not stop for routine questions or optional owner input. Use best judgment and
 > the YAGNI boundary. Use Impeccable for any new material frontend change and
 > visually re-verify affected flows. Make coherent atomic changes, verify each,
