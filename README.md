@@ -32,6 +32,9 @@ npm audit --audit-level=high
 - Public `VITE_FIREBASE_*` values belong in Netlify. The downloaded Firebase
   service-account JSON belongs only in Netlify as the single-line
   `FIREBASE_SERVICE_ACCOUNT_JSON` environment variable. Never commit it.
+- Set Netlify's `AWS_LAMBDA_JS_RUNTIME` environment variable to `nodejs24.x`.
+  Forkast uses a Node-compatible Firebase Admin release for Netlify's function
+  packaging path.
 - Deploy Firestore changes with `firebase deploy --only firestore` after the
   emulator tests pass.
 
