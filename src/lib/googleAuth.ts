@@ -169,8 +169,11 @@ export function authMessage(error: unknown) {
     'forkast/google-mismatch-unlink-failed':
       'A different Google email was selected and Forkast could not remove it automatically. Do not sign out. Retry from Settings before the password option is retired.',
   };
-  return (
-    messages[code || message] ||
-    'Google sign-in could not be completed. Your Forkast data was not changed; try again.'
-  );
+  const fallback =
+    'Google sign-in could not be completed. Your Forkast data was not changed; try again.';
+  if (messages[code || message]) return messages[code || message];
+
+  // Firebase Auth codes are stable, non-sensitive diagnostics. Never surface the
+  // provider's raw error message, which can contain implementation details.
+  return code.startsWith('auth/') ? `${fallback} Reference: ${code}.` : fallback;
 }

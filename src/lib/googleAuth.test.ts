@@ -55,6 +55,17 @@ describe('Google authentication recovery messages', () => {
     );
   });
 
+  it('surfaces only a safe Firebase code for an unmapped auth error', () => {
+    expect(
+      authMessage({
+        code: 'auth/internal-error',
+        message: 'private provider detail',
+      }),
+    ).toBe(
+      'Google sign-in could not be completed. Your Forkast data was not changed; try again. Reference: auth/internal-error.',
+    );
+  });
+
   it('uses a popup for desktop Google sign-in', async () => {
     const auth = { name: 'auth' };
     await startGoogleSignIn(auth as never);
