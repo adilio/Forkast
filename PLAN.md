@@ -11,7 +11,8 @@ with the decisions below.
 - Repository: `git@github.com:adilio/Forkast.git`
 - Local checkout: `/Users/adil/Code/Forkast`
 - Default and deployment branch: `main`
-- Current commit before this plan: `5effe3d Initialize Forkast repository`
+- Planning baseline before this autonomy update:
+  `b794f00 Document Forkast implementation plan`
 - Netlify project: `forkast-4dl`
 - Netlify fallback URL: <https://forkast-4dl.netlify.app>
 - Production URL: <https://forkast.4dl.ca>
@@ -21,12 +22,51 @@ with the decisions below.
   HTTPS response. It currently returns Netlify's 404 because no application has
   been built yet.
 - Firebase has not been provisioned yet.
-- The repository contains only the introductory README and this plan. There is
-  no application code.
+- The repository contains the introductory README, this plan, and the
+  Impeccable product record in `PRODUCT.md`. There is no application code.
 
 Repository workflow is defined by `/Users/adil/Code/AGENTS.md`: complete and
 verify requested changes, then commit and push directly to `main`; do not create
 branches or pull requests.
+
+### Autonomous execution mandate
+
+The implementing agent is authorized and expected to carry this plan through to
+the complete MVP without pausing after a milestone or asking the owner to choose
+routine product, design, dependency, naming, Firebase, Netlify, testing, or
+implementation details. Use the product facts in `PRODUCT.md`, this plan, current
+repository evidence, official documentation, real browser/device behavior, and
+best engineering judgment. When several choices are viable, choose the simplest
+reversible option that satisfies the acceptance criteria and YAGNI boundary.
+
+Do not stop at analysis, scaffolding, a status report, or a partially working
+vertical slice. Maintain an internal working plan, execute milestones in order,
+verify each one, and continue until the definition of MVP complete is met. Use
+existing authenticated local browser sessions and available tools when setup or
+verification requires a web console. Never wait for aesthetic preferences or
+other optional input; the owner has explicitly delegated those decisions.
+
+If a genuinely unavailable credential, mandatory external approval, or physical
+iPhone action makes one check impossible, exhaust safe alternatives, record the
+exact blocker, and continue every independent task. Ask the owner only when no
+safe progress remains or platform policy requires approval. A useful but
+nonessential uncertainty is not a blocker.
+
+### Atomic Git delivery policy
+
+- Use only the owner's existing configured Git identity.
+- Never add Codex, AI, bot, generated-by, or co-author attribution to commits,
+  commit messages, source files, or pull-request metadata.
+- Work directly on `main`. Do not create branches, worktrees for branches, or
+  pull requests.
+- Deliver atomically as work progresses: one coherent, reviewable change at a
+  time; run its proportional verification; stage only its files; commit it; push
+  it directly to `origin/main`; confirm the push; then continue immediately to
+  the next coherent change.
+- Keep `main` deployable at every pushed commit. Fix a failing build/deployment
+  before layering unrelated work on top.
+- Preserve unrelated owner changes, never rewrite published history, and do not
+  squash all implementation into one final mega-commit.
 
 ## 2. Product goal
 
@@ -141,6 +181,47 @@ not be an afterthought.
 
 Deferred does not mean rejected. A deferred feature gets scheduled only after a
 real household problem supplies its acceptance criteria.
+
+### Impeccable design and UX mandate
+
+Impeccable is mandatory for the frontend work, not an optional final coat of
+paint. `PRODUCT.md` contains the durable product truth. Before the first real UI
+implementation, the agent must use the installed Impeccable skill to establish
+the visual world, create `DESIGN.md`, and record any route-level surface briefs
+the workflow requires. The owner has delegated missing design inputs and the
+direction choice: use Impeccable's assigned/recommended direction and product
+evidence without stopping to ask for preferences.
+
+Treat Forkast as an **Operate** product. Its visual identity should be memorable
+and specific, but expression may never obscure recipe content, list state, or a
+familiar control. Design for the actual scenes: one-handed iPhone capture,
+cooking at a counter, grocery-store glare and distraction, two-person realtime
+updates, long ingredient names, empty/new accounts, loading, partial import,
+offline, syncing, conflict, and error states.
+
+Impeccable requirements for every user-facing milestone:
+
+- Inspect the implemented surface in a real browser at representative narrow
+  iPhone and desktop widths; screenshots and DOM assertions complement rather
+  than replace visual inspection.
+- Apply the chosen visual system consistently to navigation, typography,
+  controls, forms, recipe content, shopping states, feedback, and empty states.
+- Avoid a generic dashboard, repetitive card grid, timid template styling, and
+  decorative effects that compete with operation.
+- Maintain excellent hierarchy, one-handed reach, comfortable touch targets,
+  text enlargement, safe-area behavior, keyboard/focus behavior, screen-reader
+  semantics, contrast, reduced motion, and fast first load.
+- Use purposeful motion only where it clarifies state or spatial change.
+- Author real product-appropriate sample content for development and tests, label
+  synthetic demonstration data where needed, and never invent commercial proof.
+- After material UI work, run Impeccable's detector once over the changed
+  targets, resolve findings, then perform its independent finish-reviewer pass.
+- Before MVP completion, run Impeccable critique, adapt, audit, harden, and
+  polish passes across the complete core flow; implement the material fixes and
+  re-verify mobile and desktop.
+
+Visual polish does not authorize deferred product features. Impeccable should
+raise the craft of the agreed workflow, not expand its scope.
 
 ## 5. Target user experience
 
@@ -475,8 +556,10 @@ paid scraping service, Apple account, or new server is required for MVP.
 
 ## 10. Implementation milestones
 
-Each milestone should leave `main` working, tested, and deployed. Do not build
-later milestones speculatively inside an earlier one.
+Each milestone should leave `main` working, tested, and deployed. Complete its
+atomic commits, push them, and continue autonomously to the next milestone. Do
+not build later milestones speculatively inside an earlier one, but do not stop
+after an exit criterion is met.
 
 ### Milestone 0 — Foundation and highest-risk spike
 
@@ -678,8 +761,17 @@ MVP is complete only when all of the following are true:
 
 Use this prompt after clearing context:
 
-> Continue the Forkast project in `/Users/adil/Code/Forkast`. Read `PLAN.md`,
-> `README.md`, and `/Users/adil/Code/AGENTS.md` first. Treat `PLAN.md` as the
-> source of truth. Start with Milestone 0 only, verify it fully, commit, and push
-> directly to `main`. Do not implement deferred features or later milestones
-> unless they are necessary to satisfy Milestone 0's exit criteria.
+> Continue the Forkast project in `/Users/adil/Code/Forkast`. Read `PRODUCT.md`,
+> `PLAN.md`, `README.md`, and `/Users/adil/Code/AGENTS.md` completely before
+> acting. Treat `PRODUCT.md` and `PLAN.md` as the product and implementation
+> authorities. Work autonomously through every milestone until the full MVP
+> definition of complete is satisfied; do not stop for routine questions or
+> optional owner input. Use best judgment and the YAGNI boundary. Use the
+> installed Impeccable skill throughout the frontend work, establish and record
+> the visual system, visually inspect and refine every core flow, and complete
+> its critique/adapt/audit/harden/polish and finish-reviewer passes. Make
+> coherent atomic changes, verify each, commit with only my configured Git
+> identity, and push directly to `origin/main` as you go. Never create a branch
+> or pull request, never add Codex/AI/co-author attribution, and keep `main`
+> deployable. Continue until complete; if one genuinely unavoidable external
+> blocker remains, finish all independent work and report the exact blocker.
