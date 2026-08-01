@@ -3,6 +3,32 @@ import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              name: 'firebase-auth',
+              test: /node_modules\/@firebase\/(?:auth|auth-compat)/,
+            },
+            {
+              name: 'firebase-firestore',
+              test: /node_modules\/@firebase\/firestore/,
+            },
+            {
+              name: 'firebase-core',
+              test: /node_modules\/(?:@firebase|firebase)\//,
+            },
+            {
+              name: 'react-vendor',
+              test: /node_modules\/(?:react|react-dom|wouter)\//,
+            },
+          ],
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({

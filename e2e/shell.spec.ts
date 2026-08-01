@@ -6,6 +6,26 @@ test('shortcut URL opens the import surface', async ({ page }) => {
   await expect(page.getByLabel('Recipe website URL')).toHaveValue(
     'https://example.com/recipe',
   );
+  await expect(page.locator('a[aria-current="page"]').last()).toContainText('Import');
+});
+
+test('recipe drafts recover without a sticky action overlap', async ({ page }) => {
+  await page.goto('/recipes');
+  await page.getByRole('button', { name: 'Add first recipe' }).click();
+  await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeHidden();
+  await page.getByLabel('Recipe title').fill('Weeknight noodles 🥢');
+  await page.getByLabel(/Ingredients/).fill('2 cups noodles\n1 tbsp sesame oil');
+  await page.getByLabel(/Directions/).fill('Boil the noodles.\n\nDress and serve.');
+
+  const directions = await page.getByLabel(/Directions/).boundingBox();
+  const actions = await page.locator('.form-actions').boundingBox();
+  expect(directions).not.toBeNull();
+  expect(actions).not.toBeNull();
+  expect(directions!.y + directions!.height).toBeLessThanOrEqual(actions!.y);
+
+  await page.reload();
+  await page.getByRole('button', { name: 'Add first recipe' }).click();
+  await expect(page.getByLabel('Recipe title')).toHaveValue('Weeknight noodles 🥢');
 });
 
 test('the mobile navigation remains reachable', async ({ page }) => {
@@ -13,7 +33,5 @@ test('the mobile navigation remains reachable', async ({ page }) => {
   await expect(
     page.getByRole('navigation', { name: 'Main navigation' }).last(),
   ).toBeVisible();
-  await expect(
-    page.getByRole('heading', { name: 'A clear list for each store' }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Shopping' })).toBeVisible();
 });

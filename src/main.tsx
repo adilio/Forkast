@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import App from './App';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
+import { AuthProvider } from './lib/auth';
 import './styles.css';
 
 registerSW({ immediate: true });
@@ -10,7 +11,9 @@ registerSW({ immediate: true });
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <AppErrorBoundary>
-      <App />
+      <AuthProvider>
+        <App />
+      </AuthProvider>
     </AppErrorBoundary>
   </React.StrictMode>,
 );

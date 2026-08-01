@@ -8,9 +8,16 @@
 import { lazy, Suspense } from 'react';
 import { Link, Redirect, Route, Switch, useLocation } from 'wouter';
 import { Icon } from './components/Icon';
+import { useAuth } from './lib/auth';
+import AuthPage from './pages/AuthPage';
+import OnboardingPage from './pages/OnboardingPage';
 
 const ImportPage = lazy(() => import('./pages/ImportPage'));
 const InstallPage = lazy(() => import('./pages/InstallPage'));
+const RecipesPage = lazy(() => import('./pages/RecipesPage'));
+const ShoppingPage = lazy(() => import('./pages/ShoppingPage'));
+const CsvImportPage = lazy(() => import('./pages/CsvImportPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 
 const navItems = [
   { to: '/recipes', label: 'Recipes', icon: 'book' as const },
@@ -24,25 +31,14 @@ function NavigationLink({ to, label, icon }: (typeof navItems)[number]) {
   const active = location === to || (to === '/import' && location === '/install');
 
   return (
-    <Link href={to} className={active ? 'active' : undefined}>
+    <Link
+      href={to}
+      className={active ? 'active' : undefined}
+      aria-current={active ? 'page' : undefined}
+    >
       <Icon name={icon} />
       <span>{label}</span>
     </Link>
-  );
-}
-
-function Placeholder({ title, action }: { title: string; action: string }) {
-  return (
-    <section className="empty-workspace" aria-labelledby="empty-title">
-      <div className="empty-workspace__mark" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-      </div>
-      <p className="kicker">Your household workspace</p>
-      <h1 id="empty-title">{title}</h1>
-      <p>{action}</p>
-    </section>
   );
 }
 
@@ -68,26 +64,12 @@ function AppShell() {
       <main className="work-surface">
         <Suspense fallback={<div className="page-skeleton" aria-label="Loading" />}>
           <Switch>
-            <Route path="/recipes">
-              <Placeholder
-                title="Recipes, without the runaround"
-                action="Save a recipe from a website or add the first one by hand."
-              />
-            </Route>
-            <Route path="/shopping">
-              <Placeholder
-                title="A clear list for each store"
-                action="City Market and Costco will stay in sync here, even through a patch of bad service."
-              />
-            </Route>
+            <Route path="/recipes" component={RecipesPage} />
+            <Route path="/shopping" component={ShoppingPage} />
             <Route path="/import" component={ImportPage} />
+            <Route path="/import-csv" component={CsvImportPage} />
             <Route path="/install" component={InstallPage} />
-            <Route path="/settings">
-              <Placeholder
-                title="Household settings"
-                action="Sign-in, invites, exports, and installation help live here."
-              />
-            </Route>
+            <Route path="/settings" component={SettingsPage} />
             <Route>
               <Redirect to="/recipes" />
             </Route>
@@ -105,5 +87,16 @@ function AppShell() {
 }
 
 export default function App() {
+  const { user, householdId, loading, configured } = useAuth();
+  if (loading)
+    return (
+      <div className="boot-screen">
+        <img src="/forkast-mark.svg" alt="" />
+        <span>Opening Forkast…</span>
+      </div>
+    );
+  if (!configured) return <AppShell />;
+  if (!user) return <AuthPage />;
+  if (!householdId) return <OnboardingPage />;
   return <AppShell />;
 }

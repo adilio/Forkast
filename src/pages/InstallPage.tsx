@@ -34,8 +34,9 @@ export default function InstallPage() {
           <div>
             <strong>Open the import link</strong>
             <p>
-              URL-encode the shared input, append it to{' '}
-              <code>https://forkast.4dl.ca/import?url=</code>, then use Open URLs.
+              Add the URL Encode action for the Shortcut Input. Put its result after{' '}
+              <code>https://forkast.4dl.ca/import?url=</code> in a Text action, then
+              pass that text to Open URLs.
             </p>
           </div>
         </li>

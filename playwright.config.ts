@@ -5,7 +5,8 @@ export default defineConfig({
   fullyParallel: true,
   use: { baseURL: 'http://127.0.0.1:4173', trace: 'on-first-retry' },
   webServer: {
-    command: 'npm run preview -- --host 127.0.0.1',
+    command:
+      "VITE_FIREBASE_API_KEY='' VITE_FIREBASE_PROJECT_ID='' VITE_FIREBASE_APP_ID='' npm run dev -- --host 127.0.0.1 --port 4173",
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: !process.env.CI,
   },

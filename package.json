@@ -14,11 +14,15 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:rules": "firebase emulators:exec --project forkast-4dl --only firestore \"npm run test:rules:unit\"",
+    "test:rules:unit": "vitest run rules/firestore.rules.test.ts",
     "check": "npm run typecheck && npm run lint && npm run format && npm run test && npm run build"
   },
   "dependencies": {
     "cheerio": "^1.2.0",
     "firebase": "^12.7.0",
+    "firebase-admin": "^14.2.0",
+    "ipaddr.js": "^2.4.0",
     "papaparse": "^5.5.4",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -27,6 +31,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@firebase/rules-unit-testing": "^5.0.1",
+    "@netlify/functions": "^5.3.0",
     "@playwright/test": "^1.62.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -39,6 +45,7 @@
     "eslint": "^10.0.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.0",
+    "firebase-tools": "^15.25.1",
     "globals": "^17.3.0",
     "jsdom": "^28.1.0",
     "prettier": "^3.9.0",
