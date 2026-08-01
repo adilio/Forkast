@@ -8,10 +8,12 @@ web
 
 ## Users
 
-Forkast serves one private household, initially the owner and his wife. The
-primary usage contexts are saving a recipe while browsing on an iPhone, cooking
-from a clean recipe view, and checking a shared grocery list in City Market or
-Costco—sometimes with unreliable connectivity.
+Forkast initially serves the owner and Marla in one private household. Friends
+may also sign in and create their own completely isolated households; Forkast is
+not a public recipe-sharing network. The primary usage contexts are saving a
+recipe while browsing on an iPhone, cooking from a clean recipe view, and
+checking a shared grocery list in City Market or Costco—sometimes with
+unreliable connectivity.
 
 The owner's wife is the decisive MVP user. Success means she prefers Forkast's
 core workflow to Plan to Eat without needing technical assistance.
@@ -38,7 +40,8 @@ the users to maintain a formal ingredient taxonomy.
 ## Operating Context
 
 - The production PWA lives at <https://forkast.4dl.ca> and is hosted by Netlify.
-- Authentication and household data use Firebase Authentication and Firestore.
+- Authentication uses Google sign-in through Firebase Authentication. Forkast
+  does not collect or store passwords. Household data uses Firestore.
 - The PWA is installed from Safari rather than distributed through the App
   Store.
 - iOS does not provide the PWA Web Share Target API, so website capture uses a
@@ -58,6 +61,11 @@ the users to maintain a formal ingredient taxonomy.
   grocery items, offline persistence, and full data export.
 - The stack is React, TypeScript, Vite, Netlify, and Firebase.
 - The product is a responsive PWA, not a native app.
+- Google is the only launch sign-in method. The owner's temporary
+  email/password Firebase account must be linked to Google without changing its
+  Firebase UID or household membership before email/password is disabled.
+- Any Google user may create an isolated household or redeem a valid invite to
+  join an existing household. Data never crosses household boundaries.
 - The expected operating cost is $0/month at household usage. MVP preserves
   source image URLs instead of enabling Firebase Storage, which now requires a
   Blaze billing account.
@@ -113,4 +121,3 @@ semantic controls, reduced motion, sufficient contrast, Dynamic Type/browser
 text enlargement, and comfortable touch targets. Grocery use can involve one
 hand, glare, distraction, and poor connectivity, so essential state and actions
 must remain obvious without relying on subtle color or motion alone.
-

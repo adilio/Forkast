@@ -12,30 +12,42 @@ with the decisions below.
 - Local checkout: `/Users/adil/Code/Forkast`
 - Default and deployment branch: `main`
 - Latest implementation commit at this update:
-  `d17202f Pin Netlify-compatible PostCSS`
+  `06687cf Harden production response types`
 - Netlify project: `forkast-4dl`
 - Netlify fallback URL: <https://forkast-4dl.netlify.app>
 - Production URL: <https://forkast.4dl.ca>
 - Cloudflare DNS: DNS-only CNAME `forkast.4dl.ca` to
   `forkast-4dl.netlify.app`
-- The complete coded MVP is implemented and the custom production domain serves
-  the Forkast PWA with HTTPS, CSP/security headers, manifest, icons, and service
-  worker. The repository-triggered Netlify production deploy
-  `6a6db7197569330008a573ec` for `d17202f` is ready and was published at
-  2026-08-01 09:07 UTC, proving continuous deployment from `main`.
+- The original email/password coded MVP is implemented; the newly required
+  Google-only launch migration in Section 13 remains. The custom production domain serves
+  the Forkast PWA with HTTPS, CSP/security headers, correctly typed manifest,
+  icons, service worker, and no-store JSON function errors. GitHub Actions run
+  `30694616962` for `06687cf` is green. The current manual production deploy is
+  `6a6e2e72457127e205c89f81`; it was published after correcting the production
+  Firebase credential.
 - Firebase project `forkast-4dl` is provisioned on the Spark plan. Email/password
-  Authentication and Firestore Standard in `us-west1` are enabled. Storage,
-  Analytics, Gemini, and Firebase Hosting are intentionally disabled.
+  Authentication is temporarily enabled for the owner's bootstrap account.
+  Firestore Standard in `us-west1` is enabled. Storage, Analytics, Gemini, and
+  Firebase Hosting are intentionally disabled. The launch target is now Google
+  sign-in only; see the continuation checklist and Section 13.
 - Public Firebase web configuration is set for local/Netlify use. The private
-  Netlify `FIREBASE_SERVICE_ACCOUNT_JSON` variable is still missing because the
-  generated key is in Chrome's macOS-protected Downloads folder and could not be
-  read from the workspace. Privileged authenticated functions cannot complete
-  successfully until the owner moves/provides that JSON and it is set in
-  Netlify. Never commit it.
-- Firestore rules and emulator tests are implemented and green in GitHub Actions.
-  The stricter current `firestore.rules` still needs to be published because the
-  Firebase CLI is not authenticated. Production has an earlier membership-
-  enforcing rules revision, but not the latest `createdBy` integrity checks.
+  `FIREBASE_SERVICE_ACCOUNT_JSON` is installed as a protected, production-only
+  Netlify secret and privileged functions now work. Netlify Free does not allow
+  granular environment-variable scopes, so the secret necessarily uses all
+  site scopes. The local key copy is outside the repository at
+  `/Users/adil/Code/forkast-4dl-firebase-adminsdk-fbsvc-1b9b26cd84.json`, has
+  mode `0600`, must never be committed, and may be removed after operations no
+  longer need the local copy.
+- Firebase CLI is authenticated. The current `firestore.rules` and indexes were
+  deployed successfully and the Firebase Console visibly confirmed the
+  `createdBy`-integrity revision published at 2026-08-01 10:13 local time.
+- The owner created a real production Firebase account. Household bootstrap now
+  succeeds, City Market and Costco were seeded, and invite creation returned a
+  valid one-time 24-hour link. Invite redemption still needs Marla's account.
+- Authenticated live website import reached the production function. Allrecipes
+  refused the server fetch, and Forkast correctly preserved the source URL and
+  opened the recoverable manual editor. A successful live-site extraction still
+  needs verification against sites the household actually uses.
 
 Repository workflow is defined by `/Users/adil/Code/AGENTS.md`: complete and
 verify requested changes, then commit and push directly to `main`; do not create
@@ -94,6 +106,8 @@ branches or pull requests.
 - `a033fef Fix Netlify Firebase function runtime`
 - `c1d49ac Stabilize Netlify dependency install`
 - `d17202f Pin Netlify-compatible PostCSS`
+- `efe6e8e Plan Google sign-in for stage two`
+- `06687cf Harden production response types`
 
 All listed commits were pushed directly to `origin/main`. Firebase Admin was
 kept on the compatible 13.x line because 14.x bundled an ESM-only `jose` path
@@ -106,30 +120,36 @@ after an automatic deploy reported that `postcss@8.5.25` was not indexed.
 
 Start here in a fresh task, in this order:
 
-1. Confirm Git status is clean and `main` is at or beyond `d17202f`.
-2. Set `FIREBASE_SERVICE_ACCOUNT_JSON` in Netlify from the downloaded Firebase
-   service-account file after the owner makes the file accessible. Treat this as
-   a secret, use a single-line JSON value, and redeploy functions. Then exercise
-   household bootstrap, invite creation/redemption, and authenticated website
-   import in production with real accounts.
-3. Authenticate Firebase CLI (requires owner browser consent) and run
-   `firebase deploy --only firestore`, then confirm the published rules revision.
+1. Confirm Git status is clean and `main` is at or beyond `06687cf`. Preserve
+   the working production household and do not create a replacement owner.
+2. Implement the Google-only launch migration in Section 13. Link the owner's
+   existing production account to the matching Google identity without changing
+   its Firebase UID or household access. Let Marla sign in with Google and redeem
+   a fresh invite. Confirm unrelated Google users can create isolated households.
+   Disable email/password only after the linked owner can sign out and back in
+   with Google successfully.
+3. Finish production function acceptance: redeem a fresh one-time invite with
+   Marla and verify successful authenticated extraction on representative live
+   recipe sites. The Allrecipes refusal/fallback path is already verified.
 4. Run the private/physical acceptance work that cannot be automated: real Plan
    to Eat CSV import and report review, common live recipe sites, Save to Forkast
-   Shortcut on the wife's iPhone, two-account realtime/offline reconciliation,
+   Shortcut on Marla's iPhone, two-account realtime/offline reconciliation,
    export inspection, PWA install/persistent login on both iPhones, and one week
    of household use. Do not commit private CSV, recipe, account, or export data.
 5. Fix any acceptance blockers, rerun proportional tests, commit/push `main`, and
    update this section. Only then mark the definition of MVP complete.
 
-Already completed immediately before this handoff: GitHub run `30693089349` is
-green, Netlify deploy `6a6db7197569330008a573ec` is ready, and the freshly
-deployed anonymous import-function probe returns the expected HTTP 401 JSON.
+Already completed in production: Netlify credential setup and redeploy,
+Firebase CLI authorization, latest Firestore rules/index deployment, owner
+account creation, household bootstrap, store seeding, invite creation,
+authenticated function access, and the expected live-site failure recovery
+path. Anonymous import still returns no-store HTTP 401 JSON.
 
-The missing service-account secret, Firebase login consent, private household
-data, two physical iPhones, and one-week usage period are the only known work
-that requires owner participation. Continue all independent fixes before asking
-for that participation.
+The remaining owner/private inputs are Google provider console consent if
+required, the two Google accounts during linking/redemption, household recipe
+sites and Plan to Eat CSV, two physical iPhones, export inspection, and the
+one-week usage period. Exact account email addresses are intentionally not
+recorded in the repository.
 
 ### Autonomous execution mandate
 
@@ -209,7 +229,7 @@ unworkable.
 | Form factor | Responsive installable PWA | No App Store, native wrapper, or Apple Developer account is needed. |
 | Hosting | Netlify | Explicit preference; project and custom domain already exist. |
 | API | Netlify Functions | Required only for securely fetching third-party recipe pages and a few privileged household operations. |
-| Authentication | Firebase Authentication | Persistent email/password sessions for two household members; do not use SMS auth. |
+| Authentication | Google-only Firebase Authentication | Forkast stores no passwords. Existing owner data is preserved by linking Google to the current UID before disabling email/password. Any Google user may create an isolated household or redeem an invite. |
 | Primary data | Cloud Firestore | Realtime collaboration and built-in offline write queuing remove the need for a custom sync engine. |
 | Images in MVP | Preserve the source image URL; no uploads | Avoids Firebase Storage billing setup and image-processing work until local image ownership is proven necessary. |
 | Image uploads later | Firebase Storage, only if needed | Explicit platform preference, but it requires the Blaze billing plan even when usage stays within no-cost quotas. |
@@ -248,7 +268,7 @@ not be an afterthought.
 
 ### In the MVP
 
-- Two household users and one shared household
+- An initial two-user household plus separately isolated households for friends
 - Recipe library, search, manual CRUD, source attribution, and favorites
 - Normal website URL import with an editable confirmation step
 - iPhone Share Sheet workflow through a small user-installed Shortcut
@@ -524,14 +544,20 @@ useful error instead of attempting an oversized write.
 
 ### Authentication and household onboarding
 
-- Start with Firebase email/password authentication and browser-local
-  persistence. Avoid SMS cost and magic-link dependency at the checkout.
+- Launch with Google as the only sign-in method and browser-local persistence.
+  Do not collect or store Forkast passwords and do not add SMS or magic links.
+- Migrate the owner's temporary email/password account by explicitly linking the
+  matching Google credential while signed in. Verify the Firebase UID and
+  `users/{uid}.householdId` before and after linking.
+- Keep email/password enabled only during that migration window. Disable it and
+  remove its UI after Google sign-out/sign-in restores the same UID and data.
 - The first user creates the household through an authenticated Netlify
   Function and becomes owner. Keeping bootstrap writes server-side avoids a
   permissive special case in Firestore rules.
+- Any Google user without a membership may create an isolated household.
 - Provide a short-lived, single-use household invite link/code generated by an
   authenticated Netlify Function. Store only its hash and expiry.
-- The wife creates her own account and redeems the invite once.
+- Marla signs in with Google and redeems the owner's invite once.
 - After onboarding, normal operation does not depend on Netlify Functions.
 - The PWA must retain cached recipes and lists through ordinary auth-token
   refreshes and temporary network loss.
@@ -630,8 +656,8 @@ Reference: <https://www.netlify.com/pricing/>
 
 ### Firebase
 
-- Firebase Authentication email/password usage for two people is comfortably
-  within the no-cost tier.
+- Firebase Authentication Google sign-in usage for this small set of households
+  is comfortably within the no-cost tier.
 - Firestore's free quota is currently 1 GiB stored, 50,000 document reads/day,
   20,000 writes/day, 20,000 deletes/day, and 10 GiB outbound/month. Household
   usage should be orders of magnitude below those numbers.
@@ -685,7 +711,9 @@ iPhone handoff from Share Sheet to the correct import URL is acceptable.
 ### Milestone 1 — Firebase, household, and security
 
 - Create separate Firebase production and local-emulator configuration.
-- Enable email/password Auth and Firestore; do not enable Storage.
+- Initially enable email/password Auth for bootstrap and Firestore; do not
+  enable Storage. This historical implementation step is superseded for launch
+  by the Google-only migration in Section 13.
 - Add sign-up, sign-in, sign-out, password reset, and persistent sessions.
 - Add first-household creation, seed City Market and Costco, and implement the
   one-time spouse invite flow.
@@ -797,7 +825,8 @@ the Netlify build.
 
 On the two actual iPhones:
 
-1. Install Forkast and sign in once.
+1. Install Forkast and sign in with Google once; confirm the persistent session
+   survives closing and reopening the installed PWA.
 2. Share three real recipe websites through the Shortcut; include one expected
    failure and confirm manual recovery is tolerable.
 3. Star a recipe and find it by search.
@@ -823,40 +852,70 @@ On the two actual iPhones:
 | Third-party image URLs break | Graceful placeholder; consider Firebase Storage only after this becomes a real problem. |
 | Free tiers change or are exhausted | Keep exports portable, monitor dashboards, keep Netlify recharge off, and avoid Storage/Blaze in MVP. |
 | Plan to Eat export shape differs | Inspect the real CSV privately, preview mappings, preserve unknown fields, never commit the data. |
+| Google migration locks out the owner | Link Google while the owner is signed in, verify the same UID and household after Google re-entry, and only then disable email/password. |
+| Friends can see another household | Keep membership-based Firestore rules authoritative and verify a separate Google-created household cannot read the initial household. |
 | Project expands before it is useful | Enforce the YAGNI boundary and milestone exit criteria; schedule deferred work only from observed use. |
 
-## 13. Stage 2 — post-MVP enhancements
+## 13. Google-only launch authentication
 
-### Google sign-in
+The owner has replaced the earlier optional Stage 2 enhancement with a launch
+requirement: Google is Forkast's only sign-in method. Forkast must not collect or
+store passwords. The initial household is the owner and Marla, while friends may
+sign in with Google and create their own isolated households.
 
-Add Google as an optional Firebase Authentication provider after the MVP launch.
-Keep email/password sign-in available so authentication remains recoverable and
-does not force either household member to migrate.
+This migration now precedes the remaining private/physical MVP acceptance. The
+temporary email/password provider stays enabled only long enough to link the
+owner's existing production account safely.
 
-Implementation requirements:
+### Migration sequence
 
-- Enable the Google provider in Firebase Authentication and configure its
-  support email and authorized production/local domains.
-- Add a clear “Continue with Google” action to the existing authentication
-  screen, using the Firebase Web SDK. Use the mobile-appropriate redirect flow
-  and verify it in Safari and the installed iPhone PWA; use a popup only where it
-  is more reliable and accessible.
-- Allow an already signed-in email/password user to explicitly link their Google
-  credential. Account linking must preserve the existing Firebase UID so the
-  user's household membership and data access do not change.
-- Handle provider collisions and cancelled/blocked authentication honestly. Do
-  not create or merge household data implicitly when a Google credential is
-  already attached to another Firebase user.
-- Extend auth error mapping, unit/browser coverage, operational documentation,
-  and production acceptance checks. No additional Google API scopes are needed.
-- Confirm sign-in persistence, sign-out, password fallback, household bootstrap,
-  and invite redemption with both linked existing users and new Google users.
+1. Record the existing owner's Firebase UID and `householdId` privately for
+   before/after comparison. Never commit account identifiers.
+2. Enable the Google provider in Firebase Authentication, configure the support
+   email, and confirm `forkast.4dl.ca`, the Netlify fallback domain, and local
+   development origins are authorized.
+3. Ship an explicit **Link Google account** action for the already signed-in
+   owner. Use Firebase credential linking, never a second account plus data copy.
+4. After linking, sign out and sign back in with Google. Confirm the UID,
+   household membership, recipes, stores, and data access are unchanged.
+5. Replace the unauthenticated email/password form with one clear **Continue
+   with Google** action. Use redirect on iPhone Safari/installed PWA and a popup
+   only where it is demonstrably more reliable and accessible.
+6. Have Marla sign in as a new Google user and redeem a fresh one-time invite.
+   Confirm both members share the same household.
+7. Verify a third Google user with no invite can create a separate household and
+   cannot read either initial-household member's data. Remove any synthetic test
+   household/account created solely for this check.
+8. Disable the Firebase email/password provider and remove sign-up, password,
+   reset-password, and password-fallback UI only after the owner has successfully
+   re-entered through Google. Existing password credentials must not remain a
+   supported login path.
 
-Exit criteria: both household members can link Google to their existing Forkast
-accounts and subsequently sign in with either Google or email/password without
-changing Firebase UID, household membership, or access. A new invited user can
-also join using Google sign-in. This is Stage 2 convenience work and does not
-block the current MVP definition of complete.
+### Implementation requirements
+
+- Use the Firebase Web SDK's `GoogleAuthProvider`, redirect result handling, and
+  credential-linking APIs. Request only the basic identity scopes Firebase needs;
+  no Google API scopes are required.
+- Preserve the existing owner's Firebase UID. Never rewrite household membership
+  or copy recipes/shopping data to a new UID as a migration shortcut.
+- Treat `auth/account-exists-with-different-credential` as a guided linking case,
+  not permission to merge accounts or households automatically.
+- Handle cancelled, blocked, expired, network, popup, redirect, and provider-
+  collision failures with direct recovery copy that preserves the user's work.
+- A new Google user without a `users/{uid}` document reaches onboarding and may
+  either create an isolated household or redeem a valid invite.
+- Keep Firestore membership enforcement unchanged: authentication proves
+  identity; household documents and rules determine data access.
+- Update auth error mapping, unit tests, browser tests, CSP if required,
+  operational documentation, and production acceptance checks.
+- Use Impeccable for the material authentication UI change, but do not rerun the
+  already completed one-time detector merely because this handoff was updated.
+
+Exit criteria: the owner signs in with Google and retains the exact existing UID,
+household membership, and data access; Marla joins that household using Google;
+an unrelated Google user can create a separate isolated household; email/password
+is disabled in Firebase and absent from Forkast; persistent iPhone PWA sessions,
+sign-out/sign-in, household bootstrap, and invite redemption all work.
 
 ### Evidence-led decision queue
 
@@ -881,12 +940,17 @@ After at least two weeks of household use, review evidence in this order:
 
 MVP is complete only when all of the following are true:
 
-Current status: the software and automated criteria are implemented. The
-household/private acceptance criteria below are intentionally not claimed as
-complete until performed with the real accounts, CSV, recipe sites, exports,
-and iPhones. See Section 1 for the exact continuation order.
+Current status: the original software and automated criteria are implemented,
+production credentials/rules are live, and owner household bootstrap works. The
+new Google-only launch requirement and the household/private acceptance criteria
+below are intentionally not claimed as complete. See Section 1 for the exact
+continuation order.
 
-- Both household users can remain signed in on their iPhones.
+- The owner and Marla can sign in only with Google and remain signed in on their
+  iPhones; the owner's linked account retains its original Firebase UID and
+  household access.
+- A friend can create a separate household with Google and cannot access the
+  initial household.
 - The Plan to Eat recipe library has been imported with a reviewed error report.
 - Website import succeeds on the household's common recipe sites through the
   Share Sheet Shortcut in a few taps.
@@ -911,7 +975,10 @@ Use this prompt after clearing context:
 > acting. Treat `PRODUCT.md` and `PLAN.md` as the product and implementation
 > authorities. Begin with the **Continuation checklist** in Section 1; preserve
 > completed milestone work and do not rerun Impeccable's one-time detector.
-> Work autonomously until the full MVP definition of complete is satisfied; do
+> Implement the Google-only launch migration in Section 13 before the remaining
+> private/physical acceptance. Preserve the existing owner UID and household;
+> disable email/password only after verified Google re-entry. Work autonomously
+> until the full MVP definition of complete is satisfied; do
 > not stop for routine questions or optional owner input. Use best judgment and
 > the YAGNI boundary. Use Impeccable for any new material frontend change and
 > visually re-verify affected flows. Make coherent atomic changes, verify each,
