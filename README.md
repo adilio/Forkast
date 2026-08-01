@@ -27,10 +27,11 @@ npm audit --audit-level=high
 
 - Netlify site: `forkast-4dl`; build command `npm run build`; publish `dist`.
 - Firebase project: `forkast-4dl`; Spark plan; Firestore region `us-west1`.
-- Google Authentication and Firestore are enabled. Email/password remains enabled
-  only during the existing owner's account-linking window; disable it after the
-  owner has linked Google and verified a Google sign-out/sign-in with the same UID
-  and household. Storage, Analytics, Gemini, and Firebase Hosting are intentionally
+- The Google migration UI is deployed; enable the Firebase Google provider after
+  selecting the project support email. Email/password remains enabled only during
+  the existing owner's account-linking window; disable it after the owner has
+  linked Google and verified a Google sign-out/sign-in with the same UID and
+  household. Storage, Analytics, Gemini, and Firebase Hosting are intentionally
   disabled.
 - Public `VITE_FIREBASE_*` values belong in Netlify. The downloaded Firebase
   service-account JSON belongs only in Netlify as the single-line

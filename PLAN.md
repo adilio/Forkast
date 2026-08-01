@@ -12,19 +12,19 @@ with the decisions below.
 - Local checkout: `/Users/adil/Code/Forkast`
 - Default and deployment branch: `main`
 - Latest implementation commit at this update:
-  `06687cf Harden production response types`
+  `8b6960b Decode recipe JSON-LD entities`
 - Netlify project: `forkast-4dl`
 - Netlify fallback URL: <https://forkast-4dl.netlify.app>
 - Production URL: <https://forkast.4dl.ca>
 - Cloudflare DNS: DNS-only CNAME `forkast.4dl.ca` to
   `forkast-4dl.netlify.app`
-- The original email/password coded MVP is implemented; the newly required
-  Google-only launch migration in Section 13 remains. The custom production domain serves
-  the Forkast PWA with HTTPS, CSP/security headers, correctly typed manifest,
-  icons, service worker, and no-store JSON function errors. GitHub Actions run
-  `30694616962` for `06687cf` is green. The current manual production deploy is
-  `6a6e2e72457127e205c89f81`; it was published after correcting the production
-  Firebase credential.
+- The Google migration UI and redirect-safe Netlify auth proxy are deployed.
+  Production presents Google as the primary sign-in, retains only a disclosed
+  temporary owner-password fallback, and gives the signed-in owner an explicit
+  credential-linking action. Google provider enablement is paused at the required
+  project support-email consent; do not remove the fallback or disable password
+  auth before the owner links and verifies Google re-entry. The current production
+  deploy is `6a6e347b3b84a700080c92a6` for `8b6960b`.
 - Firebase project `forkast-4dl` is provisioned on the Spark plan. Email/password
   Authentication is temporarily enabled for the owner's bootstrap account.
   Firestore Standard in `us-west1` is enabled. Storage, Analytics, Gemini, and
@@ -46,8 +46,10 @@ with the decisions below.
   valid one-time 24-hour link. Invite redemption still needs Marla's account.
 - Authenticated live website import reached the production function. Allrecipes
   refused the server fetch, and Forkast correctly preserved the source URL and
-  opened the recoverable manual editor. A successful live-site extraction still
-  needs verification against sites the household actually uses.
+  opened the recoverable manual editor. Budget Bytes and Sally's Baking produced
+  complete editable production drafts without saving private data. The Sally's
+  pass exposed visible HTML entities; `8b6960b` fixed them and the same live URL
+  passed afterward. Household-specific source sites still need private acceptance.
 
 Repository workflow is defined by `/Users/adil/Code/AGENTS.md`: complete and
 verify requested changes, then commit and push directly to `main`; do not create
@@ -58,9 +60,9 @@ branches or pull requests.
 - Responsive React/TypeScript/Vite PWA with the cool-paper kitchen-pass visual
   system recorded in `DESIGN.md`; route briefs and the selected design contract
   are preserved in the repository.
-- Email/password sign-up, sign-in, sign-out, password reset, persistent sessions,
-  first-household bootstrap, seeded City Market/Costco stores, and one-time
-  household invitations.
+- Google redirect sign-in, safe owner credential linking, a temporary migration-
+  only owner-password fallback, sign-out, persistent sessions, first-household
+  bootstrap, seeded City Market/Costco stores, and one-time household invitations.
 - Recipe list/search/favorites, manual create/edit/delete, focused draft recovery,
   recipe details, source attribution/images, serving scaling, and selected or all
   ingredient transfer to shopping.
@@ -78,7 +80,7 @@ branches or pull requests.
 
 ### Verification completed
 
-- `npm run check` passes: TypeScript, ESLint, Prettier, 19 unit tests, and the
+- `npm run check` passes: TypeScript, ESLint, Prettier, 28 unit tests, and the
   production/PWA build.
 - Six Playwright Chromium/Mobile Safari smoke tests passed, including narrow
   iPhone and desktop flows. Manual visual inspection at 1440, 390, and 320 px
@@ -87,6 +89,7 @@ branches or pull requests.
   `30692586571` was green after fixing test discovery; later commits
   `a033fef` and `c1d49ac` also completed green verification runs. Workflow run
   `30693089349` for `d17202f` completed green in both `verify` and `rules` jobs.
+  Workflow run `30711601343` for `8b6960b` also completed green in both jobs.
 - `npm audit --audit-level=high` passes. Twelve known moderate transitive issues
   remain in development/administrative tooling; the offered forced downgrade is
   breaking and was intentionally not applied.
@@ -97,6 +100,10 @@ branches or pull requests.
 - The production app, manifest, icons, cache/security headers, and anonymous
   function boundary were probed. The import function correctly returns
   `401 {"message":"Sign in to continue."}` rather than crashing.
+- The owner UID and household membership baseline were verified privately using
+  one-way hashes. The production export action completed, and the backup,
+  portable recipe, manifest, and two-store structure validated without printing
+  or committing household data.
 
 ### Delivery history
 
@@ -108,6 +115,9 @@ branches or pull requests.
 - `d17202f Pin Netlify-compatible PostCSS`
 - `efe6e8e Plan Google sign-in for stage two`
 - `06687cf Harden production response types`
+- `58556e4 Add safe Google account migration`
+- `3f5752b Remove unused Firebase init proxy`
+- `8b6960b Decode recipe JSON-LD entities`
 
 All listed commits were pushed directly to `origin/main`. Firebase Admin was
 kept on the compatible 13.x line because 14.x bundled an ESM-only `jose` path
@@ -120,14 +130,17 @@ after an automatic deploy reported that `postcss@8.5.25` was not indexed.
 
 Start here in a fresh task, in this order:
 
-1. Confirm Git status is clean and `main` is at or beyond `06687cf`. Preserve
+1. Confirm Git status is clean and `main` is at or beyond `8b6960b`. Preserve
    the working production household and do not create a replacement owner.
-2. Implement the Google-only launch migration in Section 13. Link the owner's
-   existing production account to the matching Google identity without changing
-   its Firebase UID or household access. Let Marla sign in with Google and redeem
-   a fresh invite. Confirm unrelated Google users can create isolated households.
-   Disable email/password only after the linked owner can sign out and back in
-   with Google successfully.
+2. Finish the staged Google-only launch migration in Section 13. In the prepared
+   Firebase provider dialog, the owner must select the project support email and
+   save. Add the custom and Netlify auth-handler redirect URIs to the generated
+   OAuth web client. Then use Forkast Settings to link the matching Google
+   identity, sign out, and sign back in with Google. Compare the same private UID
+   and household baseline, then remove the temporary password UI and disable the
+   provider. Let Marla redeem a fresh invite with Google and verify an unrelated
+   Google user creates an isolated household; remove only synthetic acceptance
+   data afterward.
 3. Finish production function acceptance: redeem a fresh one-time invite with
    Marla and verify successful authenticated extraction on representative live
    recipe sites. The Allrecipes refusal/fallback path is already verified.
@@ -142,14 +155,16 @@ Start here in a fresh task, in this order:
 Already completed in production: Netlify credential setup and redeploy,
 Firebase CLI authorization, latest Firestore rules/index deployment, owner
 account creation, household bootstrap, store seeding, invite creation,
-authenticated function access, and the expected live-site failure recovery
-path. Anonymous import still returns no-store HTTP 401 JSON.
+authenticated function access, Google migration code/proxy deployment,
+production export structure validation, two successful public-site extractions,
+and the expected live-site failure recovery path. Anonymous import still returns
+no-store HTTP 401 JSON.
 
-The remaining owner/private inputs are Google provider console consent if
-required, the two Google accounts during linking/redemption, household recipe
-sites and Plan to Eat CSV, two physical iPhones, export inspection, and the
-one-week usage period. Exact account email addresses are intentionally not
-recorded in the repository.
+The remaining owner/private inputs are the Google provider support-email consent,
+the two household Google accounts plus an unrelated acceptance account, household
+recipe sites and Plan to Eat CSV, two physical iPhones, downloaded-export spot
+inspection, and the one-week usage period. Exact account email addresses are
+intentionally not recorded in the repository.
 
 ### Autonomous execution mandate
 
@@ -940,11 +955,12 @@ After at least two weeks of household use, review evidence in this order:
 
 MVP is complete only when all of the following are true:
 
-Current status: the original software and automated criteria are implemented,
-production credentials/rules are live, and owner household bootstrap works. The
-new Google-only launch requirement and the household/private acceptance criteria
-below are intentionally not claimed as complete. See Section 1 for the exact
-continuation order.
+Current status: the software and automated criteria are implemented, production
+credentials/rules are live, owner household bootstrap works, and the safe Google
+migration stage is deployed. Provider support-email consent, owner linking and
+Google re-entry, password retirement, the other Google accounts, and the remaining
+household/physical acceptance criteria below are intentionally not claimed as
+complete. See Section 1 for the exact continuation order.
 
 - The owner and Marla can sign in only with Google and remain signed in on their
   iPhones; the owner's linked account retains its original Firebase UID and
