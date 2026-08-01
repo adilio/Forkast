@@ -12,7 +12,7 @@ with the decisions below.
 - Local checkout: `/Users/adil/Code/Forkast`
 - Default and deployment branch: `main`
 - Latest implementation commit at this update:
-  `8b6960b Decode recipe JSON-LD entities`
+  `9060e88 Expose safe Google auth diagnostics`
 - Netlify project: `forkast-4dl`
 - Netlify fallback URL: <https://forkast-4dl.netlify.app>
 - Production URL: <https://forkast.4dl.ca>
@@ -21,10 +21,12 @@ with the decisions below.
 - The Google migration UI and redirect-safe Netlify auth proxy are deployed.
   Production presents Google as the primary sign-in, retains only a disclosed
   temporary owner-password fallback, and gives the signed-in owner an explicit
-  credential-linking action. Google provider enablement is paused at the required
-  project support-email consent; do not remove the fallback or disable password
-  auth before the owner links and verifies Google re-entry. The current production
-  deploy is `6a6e347b3b84a700080c92a6` for `8b6960b`.
+  credential-linking action. The Google provider, support email, Firebase
+  authorized domains, and OAuth origins/redirect URIs are configured. A live
+  owner linking attempt currently stops safely with `auth/internal-error` before
+  the Google popup opens; the owner record still has only its password provider.
+  Do not remove the fallback or disable password auth before the owner links and
+  verifies Google re-entry.
 - Firebase project `forkast-4dl` is provisioned on the Spark plan. Email/password
   Authentication is temporarily enabled for the owner's bootstrap account.
   Firestore Standard in `us-west1` is enabled. Storage, Analytics, Gemini, and
@@ -80,7 +82,7 @@ branches or pull requests.
 
 ### Verification completed
 
-- `npm run check` passes: TypeScript, ESLint, Prettier, 28 unit tests, and the
+- `npm run check` passes: TypeScript, ESLint, Prettier, 30 unit tests, and the
   production/PWA build.
 - Six Playwright Chromium/Mobile Safari smoke tests passed, including narrow
   iPhone and desktop flows. Manual visual inspection at 1440, 390, and 320 px
@@ -89,7 +91,7 @@ branches or pull requests.
   `30692586571` was green after fixing test discovery; later commits
   `a033fef` and `c1d49ac` also completed green verification runs. Workflow run
   `30693089349` for `d17202f` completed green in both `verify` and `rules` jobs.
-  Workflow run `30711601343` for `8b6960b` also completed green in both jobs.
+  Workflow run `30714565583` for `9060e88` also completed green.
 - `npm audit --audit-level=high` passes. Twelve known moderate transitive issues
   remain in development/administrative tooling; the offered forced downgrade is
   breaking and was intentionally not applied.
@@ -118,6 +120,9 @@ branches or pull requests.
 - `58556e4 Add safe Google account migration`
 - `3f5752b Remove unused Firebase init proxy`
 - `8b6960b Decode recipe JSON-LD entities`
+- `f4a6371 Update Google migration handoff`
+- `30e56cb Use reliable desktop Google auth`
+- `9060e88 Expose safe Google auth diagnostics`
 
 All listed commits were pushed directly to `origin/main`. Firebase Admin was
 kept on the compatible 13.x line because 14.x bundled an ESM-only `jose` path
@@ -130,17 +135,17 @@ after an automatic deploy reported that `postcss@8.5.25` was not indexed.
 
 Start here in a fresh task, in this order:
 
-1. Confirm Git status is clean and `main` is at or beyond `8b6960b`. Preserve
+1. Confirm Git status is clean and `main` is at or beyond `9060e88`. Preserve
    the working production household and do not create a replacement owner.
-2. Finish the staged Google-only launch migration in Section 13. In the prepared
-   Firebase provider dialog, the owner must select the project support email and
-   save. Add the custom and Netlify auth-handler redirect URIs to the generated
-   OAuth web client. Then use Forkast Settings to link the matching Google
-   identity, sign out, and sign back in with Google. Compare the same private UID
-   and household baseline, then remove the temporary password UI and disable the
-   provider. Let Marla redeem a fresh invite with Google and verify an unrelated
-   Google user creates an isolated household; remove only synthetic acceptance
-   data afterward.
+2. Finish the staged Google-only launch migration in Section 13. Provider setup,
+   support email, authorized domains, and OAuth origins/redirect URIs are already
+   complete. Diagnose the live `auth/internal-error` that occurs before the
+   desktop Google popup opens, then use Forkast Settings to link the matching
+   Google identity, sign out, and sign back in with Google. Compare the same
+   private UID and household baseline, then remove the temporary password UI and
+   disable the provider. Let Marla redeem a fresh invite with Google and verify
+   an unrelated Google user creates an isolated household; remove only synthetic
+   acceptance data afterward.
 3. Finish production function acceptance: redeem a fresh one-time invite with
    Marla and verify successful authenticated extraction on representative live
    recipe sites. The Allrecipes refusal/fallback path is already verified.
@@ -160,11 +165,11 @@ production export structure validation, two successful public-site extractions,
 and the expected live-site failure recovery path. Anonymous import still returns
 no-store HTTP 401 JSON.
 
-The remaining owner/private inputs are the Google provider support-email consent,
-the two household Google accounts plus an unrelated acceptance account, household
-recipe sites and Plan to Eat CSV, two physical iPhones, downloaded-export spot
-inspection, and the one-week usage period. Exact account email addresses are
-intentionally not recorded in the repository.
+The remaining owner/private inputs are owner Google consent after the popup
+resolver is fixed, the second household Google account plus an unrelated
+acceptance account, household recipe sites and Plan to Eat CSV, two physical
+iPhones, downloaded-export spot inspection, and the one-week usage period. Exact
+account email addresses are intentionally not recorded in the repository.
 
 ### Autonomous execution mandate
 
