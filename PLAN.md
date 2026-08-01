@@ -11,23 +11,125 @@ with the decisions below.
 - Repository: `git@github.com:adilio/Forkast.git`
 - Local checkout: `/Users/adil/Code/Forkast`
 - Default and deployment branch: `main`
-- Planning baseline before this autonomy update:
-  `b794f00 Document Forkast implementation plan`
+- Latest implementation commit at this update:
+  `d17202f Pin Netlify-compatible PostCSS`
 - Netlify project: `forkast-4dl`
 - Netlify fallback URL: <https://forkast-4dl.netlify.app>
 - Production URL: <https://forkast.4dl.ca>
 - Cloudflare DNS: DNS-only CNAME `forkast.4dl.ca` to
   `forkast-4dl.netlify.app`
-- Netlify has accepted the custom domain and the public URL has served a valid
-  HTTPS response. It currently returns Netlify's 404 because no application has
-  been built yet.
-- Firebase has not been provisioned yet.
-- The repository contains the introductory README, this plan, and the
-  Impeccable product record in `PRODUCT.md`. There is no application code.
+- The complete coded MVP is implemented and the custom production domain serves
+  the Forkast PWA with HTTPS, CSP/security headers, manifest, icons, and service
+  worker. The repository-triggered Netlify production deploy
+  `6a6db7197569330008a573ec` for `d17202f` is ready and was published at
+  2026-08-01 09:07 UTC, proving continuous deployment from `main`.
+- Firebase project `forkast-4dl` is provisioned on the Spark plan. Email/password
+  Authentication and Firestore Standard in `us-west1` are enabled. Storage,
+  Analytics, Gemini, and Firebase Hosting are intentionally disabled.
+- Public Firebase web configuration is set for local/Netlify use. The private
+  Netlify `FIREBASE_SERVICE_ACCOUNT_JSON` variable is still missing because the
+  generated key is in Chrome's macOS-protected Downloads folder and could not be
+  read from the workspace. Privileged authenticated functions cannot complete
+  successfully until the owner moves/provides that JSON and it is set in
+  Netlify. Never commit it.
+- Firestore rules and emulator tests are implemented and green in GitHub Actions.
+  The stricter current `firestore.rules` still needs to be published because the
+  Firebase CLI is not authenticated. Production has an earlier membership-
+  enforcing rules revision, but not the latest `createdBy` integrity checks.
 
 Repository workflow is defined by `/Users/adil/Code/AGENTS.md`: complete and
 verify requested changes, then commit and push directly to `main`; do not create
 branches or pull requests.
+
+### Implemented MVP
+
+- Responsive React/TypeScript/Vite PWA with the cool-paper kitchen-pass visual
+  system recorded in `DESIGN.md`; route briefs and the selected design contract
+  are preserved in the repository.
+- Email/password sign-up, sign-in, sign-out, password reset, persistent sessions,
+  first-household bootstrap, seeded City Market/Costco stores, and one-time
+  household invitations.
+- Recipe list/search/favorites, manual create/edit/delete, focused draft recovery,
+  recipe details, source attribution/images, serving scaling, and selected or all
+  ingredient transfer to shopping.
+- Authenticated JSON-LD website importer with editable review/fallback and SSRF,
+  redirect, DNS/IP, timeout, response-size, and content-type protections.
+- Plan to Eat CSV preview/import with unknown-field preservation, duplicate
+  decisions, progress, and downloadable completion report.
+- Realtime/offline per-store shopping lists with quantities, manual items,
+  check/uncheck, move/delete, clear confirmation, delete undo, safe exact-item
+  combining, remembered store routing, and per-store transfer receipts.
+- Full versioned household JSON export, schema.org Recipe JSON-LD export, and
+  source/image manifest; restore guidance is in `README.md`.
+- Netlify Functions, production headers, PWA install/Shortcut instructions,
+  Firestore security rules, CI, unit/rules/browser tests, and operational docs.
+
+### Verification completed
+
+- `npm run check` passes: TypeScript, ESLint, Prettier, 19 unit tests, and the
+  production/PWA build.
+- Six Playwright Chromium/Mobile Safari smoke tests passed, including narrow
+  iPhone and desktop flows. Manual visual inspection at 1440, 390, and 320 px
+  found no horizontal overflow, console errors, or blocked primary controls.
+- The Firestore emulator rules suite passes in GitHub Actions. Workflow run
+  `30692586571` was green after fixing test discovery; later commits
+  `a033fef` and `c1d49ac` also completed green verification runs. Workflow run
+  `30693089349` for `d17202f` completed green in both `verify` and `rules` jobs.
+- `npm audit --audit-level=high` passes. Twelve known moderate transitive issues
+  remain in development/administrative tooling; the offered forced downgrade is
+  breaking and was intentionally not applied.
+- Impeccable was used throughout. Its detector was run exactly once and returned
+  no findings; do not rerun it merely for the handoff. Independent critique and
+  finish-reviewer passes were completed, persisted under `.impeccable/`, and all
+  material findings were fixed.
+- The production app, manifest, icons, cache/security headers, and anonymous
+  function boundary were probed. The import function correctly returns
+  `401 {"message":"Sign in to continue."}` rather than crashing.
+
+### Delivery history
+
+- `f26aa24 Build deployable Forkast PWA foundation`
+- `787f835 Build secure Forkast household MVP`
+- `446a63a Fix Firestore rules test discovery`
+- `a033fef Fix Netlify Firebase function runtime`
+- `c1d49ac Stabilize Netlify dependency install`
+- `d17202f Pin Netlify-compatible PostCSS`
+
+All listed commits were pushed directly to `origin/main`. Firebase Admin was
+kept on the compatible 13.x line because 14.x bundled an ESM-only `jose` path
+that crashed in Netlify's CommonJS function packaging. Netlify functions use
+`AWS_LAMBDA_JS_RUNTIME=nodejs24.x`. The latest PostCSS override pins the earliest
+audited-safe release old enough for Netlify's lagging npm mirror; this was added
+after an automatic deploy reported that `postcss@8.5.25` was not indexed.
+
+### Continuation checklist
+
+Start here in a fresh task, in this order:
+
+1. Confirm Git status is clean and `main` is at or beyond `d17202f`.
+2. Set `FIREBASE_SERVICE_ACCOUNT_JSON` in Netlify from the downloaded Firebase
+   service-account file after the owner makes the file accessible. Treat this as
+   a secret, use a single-line JSON value, and redeploy functions. Then exercise
+   household bootstrap, invite creation/redemption, and authenticated website
+   import in production with real accounts.
+3. Authenticate Firebase CLI (requires owner browser consent) and run
+   `firebase deploy --only firestore`, then confirm the published rules revision.
+4. Run the private/physical acceptance work that cannot be automated: real Plan
+   to Eat CSV import and report review, common live recipe sites, Save to Forkast
+   Shortcut on the wife's iPhone, two-account realtime/offline reconciliation,
+   export inspection, PWA install/persistent login on both iPhones, and one week
+   of household use. Do not commit private CSV, recipe, account, or export data.
+5. Fix any acceptance blockers, rerun proportional tests, commit/push `main`, and
+   update this section. Only then mark the definition of MVP complete.
+
+Already completed immediately before this handoff: GitHub run `30693089349` is
+green, Netlify deploy `6a6db7197569330008a573ec` is ready, and the freshly
+deployed anonymous import-function probe returns the expected HTTP 401 JSON.
+
+The missing service-account secret, Firebase login consent, private household
+data, two physical iPhones, and one-week usage period are the only known work
+that requires owner participation. Continue all independent fixes before asking
+for that participation.
 
 ### Autonomous execution mandate
 
@@ -561,6 +663,11 @@ atomic commits, push them, and continue autonomously to the next milestone. Do
 not build later milestones speculatively inside an earlier one, but do not stop
 after an exit criterion is met.
 
+Implementation status as of `d17202f`: the coded work for Milestones 0–6 is
+complete. Automated and browser verification is complete. The remaining exit
+criteria are the production secret/rules publication and owner/private-device
+acceptance items listed in Section 1; do not rebuild completed milestones.
+
 ### Milestone 0 — Foundation and highest-risk spike
 
 - Scaffold Vite + React + TypeScript.
@@ -741,6 +848,11 @@ After at least two weeks of household use, review evidence in this order:
 
 MVP is complete only when all of the following are true:
 
+Current status: the software and automated criteria are implemented. The
+household/private acceptance criteria below are intentionally not claimed as
+complete until performed with the real accounts, CSV, recipe sites, exports,
+and iPhones. See Section 1 for the exact continuation order.
+
 - Both household users can remain signed in on their iPhones.
 - The Plan to Eat recipe library has been imported with a reviewed error report.
 - Website import succeeds on the household's common recipe sites through the
@@ -764,14 +876,14 @@ Use this prompt after clearing context:
 > Continue the Forkast project in `/Users/adil/Code/Forkast`. Read `PRODUCT.md`,
 > `PLAN.md`, `README.md`, and `/Users/adil/Code/AGENTS.md` completely before
 > acting. Treat `PRODUCT.md` and `PLAN.md` as the product and implementation
-> authorities. Work autonomously through every milestone until the full MVP
-> definition of complete is satisfied; do not stop for routine questions or
-> optional owner input. Use best judgment and the YAGNI boundary. Use the
-> installed Impeccable skill throughout the frontend work, establish and record
-> the visual system, visually inspect and refine every core flow, and complete
-> its critique/adapt/audit/harden/polish and finish-reviewer passes. Make
-> coherent atomic changes, verify each, commit with only my configured Git
-> identity, and push directly to `origin/main` as you go. Never create a branch
-> or pull request, never add Codex/AI/co-author attribution, and keep `main`
-> deployable. Continue until complete; if one genuinely unavoidable external
-> blocker remains, finish all independent work and report the exact blocker.
+> authorities. Begin with the **Continuation checklist** in Section 1; preserve
+> completed milestone work and do not rerun Impeccable's one-time detector.
+> Work autonomously until the full MVP definition of complete is satisfied; do
+> not stop for routine questions or optional owner input. Use best judgment and
+> the YAGNI boundary. Use Impeccable for any new material frontend change and
+> visually re-verify affected flows. Make coherent atomic changes, verify each,
+> commit with only my configured Git identity, and push directly to
+> `origin/main` as you go. Never create a branch or pull request, never add
+> Codex/AI/co-author attribution, and keep `main` deployable. Continue until
+> complete; if a listed credential/private-data/physical-device blocker remains,
+> finish every independent task and report the exact owner action needed.
