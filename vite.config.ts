@@ -80,7 +80,10 @@ export default defineConfig({
         ],
       },
       workbox: {
-        navigateFallbackDenylist: [/^\/\.netlify\//, /^\/api\//],
+        // `/__/auth/*` is Firebase's auth handler, proxied to Firebase Hosting by
+        // netlify.toml. It must reach the network: serving the app shell there
+        // swallows the sign-in result and auth never resolves.
+        navigateFallbackDenylist: [/^\/\.netlify\//, /^\/api\//, /^\/__\//],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.(?:png|jpg|jpeg|webp|avif)$/i,
