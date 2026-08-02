@@ -53,6 +53,11 @@ npm audit --audit-level=high
   `https://apis.google.com` in `script-src` and `frame-src`. Firebase Auth loads
   its gapi bootstrap from that origin, and without it Google sign-in fails with
   `auth/internal-error` before the popup opens.
+- Keep `/__/` in the service worker's `navigateFallbackDenylist` in
+  `vite.config.ts`. The auth handler is proxied onto our own origin, so without
+  that entry the service worker serves the app shell in its place and Google
+  sign-in hangs on the boot screen with no error. `curl` cannot detect this;
+  check it in a browser that already has the app installed.
 - Response headers reach installed clients only when `index.html` changes,
   because the service worker precaches the document and replays its cached
   headers. Netlify's `COMMIT_REF` is stamped into the document as

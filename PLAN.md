@@ -12,7 +12,7 @@ with the decisions below.
 - Local checkout: `/Users/adil/Code/Forkast`
 - Default and deployment branch: `main`
 - Latest implementation commit at this update:
-  `a8ad062 Rebalance the signed-out sign-in panel`
+  `6b7fac7 Stop the service worker swallowing Google sign-in`
 - Netlify project: `forkast-4dl`
 - Netlify fallback URL: <https://forkast-4dl.netlify.app>
 - Production URL: <https://forkast.4dl.ca>
@@ -30,7 +30,19 @@ with the decisions below.
   before opening the popup. `f5dbbec` allows that origin in `script-src` and
   `frame-src`, and the load was confirmed to succeed on the live origin
   afterwards. Interactive Google sign-in still needs owner consent to complete.
-- A second delivery fault was found and fixed while verifying that CSP change.
+- Google sign-in then hung on the boot screen, which was a second and
+  independent fault: the service worker was answering Firebase's auth handler.
+  Workbox serves the precached `index.html` for every in-scope navigation except
+  denylisted paths, and the denylist covered only `/.netlify/*` and `/api/*`.
+  Because `netlify.toml` proxies `/__/auth/*` to Firebase Hosting on our own
+  origin, the redirect back from Google — and the popup's own window — were
+  served the React app instead of the handler, so the result was never posted
+  back and the pending redirect never settled. `6b7fac7` adds `/^\/__\//` to the
+  denylist. Verified in production both ways: that URL rendered the app shell and
+  routed to `/recipes` before, and returns Firebase's handler after. `curl`
+  always looked healthy because it has no service worker; this fault was only
+  observable in a browser that had visited the site.
+- A delivery fault was found and fixed while verifying the CSP change.
   The service worker precaches `index.html` and replays its cached response
   headers, and Workbox refetches it only when the document hash changes, so a
   deploy touching only `netlify.toml` never reached installed clients. `94b182f`
@@ -153,6 +165,9 @@ branches or pull requests.
 - `f5dbbec Allow Google sign-in through the production CSP`
 - `94b182f Let header-only deploys reach installed clients`
 - `a8ad062 Rebalance the signed-out sign-in panel`
+- `b4a1c04 Update the handoff for the Google-only launch`
+- `e9a3222 Rewrite the signed-out tagline`
+- `6b7fac7 Stop the service worker swallowing Google sign-in`
 
 All listed commits were pushed directly to `origin/main`. Firebase Admin was
 kept on the compatible 13.x line because 14.x bundled an ESM-only `jose` path
@@ -171,9 +186,14 @@ Start here in a fresh task, in this order:
    its test household, and its records as disposable acceptance fixtures.
 2. Sign in with the owner's Google account in an ordinary browser. This is the
    first step that needs interactive Google consent, so it could not be completed
-   without the owner. The blocking CSP fault is fixed, so expect this to succeed;
-   if it does not, read the exact Firebase code from the on-screen message — every
-   unmapped code is surfaced as `Reference: auth/...` — before changing anything.
+   without the owner. Both blocking faults are fixed, so expect this to succeed.
+   An installed PWA or an open tab may still be running the previous service
+   worker: open it once, close it fully, and reopen before judging a failure. If
+   it fails with a message, read the exact Firebase code from it — every unmapped
+   code is surfaced as `Reference: auth/...`. If instead it hangs on
+   "Opening Forkast…" with no message, suspect the delivery layer again rather
+   than Firebase configuration, and check what `/__/auth/handler` actually returns
+   in a browser that has the app installed.
    Confirm the new household is created with City Market and Costco seeded, then
    sign out and back in to verify persistence.
 3. Only after that sign-in succeeds, disable Firebase Email/Password. Doing it
@@ -938,9 +958,12 @@ permanent recovery path.
 ### Status at this update
 
 Steps 1 through 4 of the sequence below are done and deployed: the migration
-code is gone, one **Continue with Google** action remains, and the
-`auth/internal-error` that blocked step 4 was traced to the site's own CSP and
-fixed rather than worked around. Steps 5 through 8 are the remaining owner work
+code is gone, one **Continue with Google** action remains, and both faults that
+blocked step 4 were traced to Forkast's own delivery layer and fixed rather than
+worked around — the CSP refusing the gapi bootstrap, then the service worker
+answering the auth handler. An owner attempt between those two fixes hung on the
+"Opening Forkast…" boot screen; that symptom is the second fault and should not
+recur. Steps 5 through 8 are the remaining owner work
 and all of them need interactive Google consent. Disabling Email/Password in
 step 5 must wait until a Google sign-in has actually succeeded — the disposable
 password account is still the only account that has ever signed in, so disabling
@@ -997,6 +1020,9 @@ Two constraints this cutover uncovered, both now enforced in the repository:
 - The production CSP must allow `https://apis.google.com` in `script-src` and
   `frame-src`. The Firebase Auth bundle loads its gapi bootstrap from there for
   both the popup and redirect flows.
+- `/__/` must stay in `navigateFallbackDenylist`. The auth handler is same-origin
+  by design, so the service worker will otherwise serve the app shell in its
+  place and sign-in will hang with no error.
 - Response-header changes only reach installed clients when `index.html` changes,
   because the service worker precaches the document with its headers. The build
   stamps `COMMIT_REF` into the document to guarantee that.
