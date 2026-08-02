@@ -26,8 +26,8 @@ export default function AuthPage() {
         <p className="kicker">Private by default</p>
         <h1>Recipes to groceries, without the clutter.</h1>
         <p>
-          One shared household, two real stores, and every recipe kept under your
-          control.
+          Save a recipe, scale it for however many you&rsquo;re feeding, and send the
+          ingredients to the store where you actually buy them.
         </p>
       </section>
       <section className="auth-panel">
