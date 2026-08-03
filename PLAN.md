@@ -1,6 +1,6 @@
 # Forkast implementation plan
 
-Last updated: 2026-08-01
+Last updated: 2026-08-02
 
 This document is the source of truth for continuing Forkast in a fresh Codex
 task. It supersedes the attached Claude research where that research conflicts
@@ -12,7 +12,7 @@ with the decisions below.
 - Local checkout: `/Users/adil/Code/Forkast`
 - Default and deployment branch: `main`
 - Latest implementation commit at this update:
-  `6b7fac7 Stop the service worker swallowing Google sign-in`
+  `af7cc06 Record the service-worker sign-in fault`
 - Netlify project: `forkast-4dl`
 - Netlify fallback URL: <https://forkast-4dl.netlify.app>
 - Production URL: <https://forkast.4dl.ca>
@@ -29,7 +29,7 @@ with the decisions below.
   Firebase SDK loads for both the popup and redirect flows — so the SDK aborted
   before opening the popup. `f5dbbec` allows that origin in `script-src` and
   `frame-src`, and the load was confirmed to succeed on the live origin
-  afterwards. Interactive Google sign-in still needs owner consent to complete.
+  afterwards.
 - Google sign-in then hung on the boot screen, which was a second and
   independent fault: the service worker was answering Firebase's auth handler.
   Workbox serves the precached `index.html` for every in-scope navigation except
@@ -42,6 +42,9 @@ with the decisions below.
   routed to `/recipes` before, and returns Firebase's handler after. `curl`
   always looked healthy because it has no service worker; this fault was only
   observable in a browser that had visited the site.
+- **Google sign-in works in production.** The owner completed a real Google
+  sign-in on 2026-08-02, after both faults above were fixed. Sign-in is no longer
+  a blocker for any remaining acceptance work.
 - A delivery fault was found and fixed while verifying the CSP change.
   The service worker precaches `index.html` and replays its cached response
   headers, and Workbox refetches it only when the document hash changes, so a
@@ -69,8 +72,9 @@ with the decisions below.
   user relies on that UID, household, invite, or data. Clean Google-only owner,
   Marla, and isolation acceptance remains outstanding.
 - Authenticated live website import reached the production function. Allrecipes
-  refused the server fetch, and Forkast correctly preserved the source URL and
-  opened the recoverable manual editor. Budget Bytes and Sally's Baking produced
+  refuses the fetch and this is now understood rather than assumed: see
+  “Publisher blocks on recipe import” below. Forkast correctly preserved the
+  source URL and opened the recoverable manual editor. Budget Bytes and Sally's Baking produced
   complete editable production drafts without saving private data. The Sally's
   pass exposed visible HTML entities; `8b6960b` fixed them and the same live URL
   passed afterward. Household-specific source sites still need private acceptance.
@@ -168,6 +172,7 @@ branches or pull requests.
 - `b4a1c04 Update the handoff for the Google-only launch`
 - `e9a3222 Rewrite the signed-out tagline`
 - `6b7fac7 Stop the service worker swallowing Google sign-in`
+- `af7cc06 Record the service-worker sign-in fault`
 
 All listed commits were pushed directly to `origin/main`. Firebase Admin was
 kept on the compatible 13.x line because 14.x bundled an ESM-only `jose` path
@@ -184,24 +189,21 @@ Start here in a fresh task, in this order:
    3 of the previous checklist — the code cutover and the `auth/internal-error`
    diagnosis — are complete and deployed. Treat the password-only Auth account,
    its test household, and its records as disposable acceptance fixtures.
-2. Sign in with the owner's Google account in an ordinary browser. This is the
-   first step that needs interactive Google consent, so it could not be completed
-   without the owner. Both blocking faults are fixed, so expect this to succeed.
-   An installed PWA or an open tab may still be running the previous service
-   worker: open it once, close it fully, and reopen before judging a failure. If
-   it fails with a message, read the exact Firebase code from it — every unmapped
-   code is surfaced as `Reference: auth/...`. If instead it hangs on
-   "Opening Forkast…" with no message, suspect the delivery layer again rather
-   than Firebase configuration, and check what `/__/auth/handler` actually returns
-   in a browser that has the app installed.
+2. Done on 2026-08-02: the owner signed in with Google in production. If a later
+   sign-in problem appears, separate the two signatures before changing anything.
+   A visible message carries a Firebase code — every unmapped code is surfaced as
+   `Reference: auth/...` — and points at Google or Firebase configuration. A
+   silent hang on "Opening Forkast…" points at Forkast's delivery layer instead;
+   check what `/__/auth/handler` returns in a browser that has the app installed,
+   not with `curl`. Also confirm the household was created with City Market and
+   Costco seeded, then sign out and back in to verify persistence; those
+   sub-checks are not yet confirmed.
    Confirm the new household is created with City Market and Costco seeded, then
    sign out and back in to verify persistence.
-3. Only after that sign-in succeeds, disable Firebase Email/Password. Doing it
-   earlier would leave the household with no way in, since the disposable
-   password account is currently the only account that has ever signed in. Then
-   delete the disposable password Auth user and recursively delete only its test
-   household/profile data using privately resolved exact IDs; never record those
-   IDs in Git.
+3. Now unblocked by step 2: disable Firebase Email/Password, confirm the owner's
+   Google session still works, then delete the disposable password Auth user and
+   recursively delete only its test household/profile data using privately
+   resolved exact IDs. Never record those IDs in Git.
 4. Have Marla sign in with Google and redeem a fresh one-time invite. Verify both
    accounts share the new household. Then verify an unrelated Google user without
    an invite creates an isolated household and cannot read the initial household;
@@ -957,17 +959,20 @@ permanent recovery path.
 
 ### Status at this update
 
-Steps 1 through 4 of the sequence below are done and deployed: the migration
-code is gone, one **Continue with Google** action remains, and both faults that
-blocked step 4 were traced to Forkast's own delivery layer and fixed rather than
-worked around — the CSP refusing the gapi bootstrap, then the service worker
-answering the auth handler. An owner attempt between those two fixes hung on the
-"Opening Forkast…" boot screen; that symptom is the second fault and should not
-recur. Steps 5 through 8 are the remaining owner work
-and all of them need interactive Google consent. Disabling Email/Password in
-step 5 must wait until a Google sign-in has actually succeeded — the disposable
-password account is still the only account that has ever signed in, so disabling
-it first would lock the household out.
+Steps 1 through 4 are done, deployed, and confirmed working: the migration code
+is gone, one **Continue with Google** action remains, and the owner completed a
+real Google sign-in in production on 2026-08-02. Both faults that blocked that
+sign-in were in Forkast's own delivery layer, not in Firebase configuration —
+the CSP refusing the gapi bootstrap, then the service worker answering the auth
+handler — and both are fixed.
+
+Steps 5 through 8 remain. Disabling Email/Password in step 5 is now unblocked,
+because a Google account has successfully signed in; do it before deleting the
+disposable password account, and confirm the owner's Google session still works
+afterwards. The sub-checks inside steps 6 through 8 — household creation with
+City Market and Costco seeded, sign-out and sign-back-in persistence, Marla's
+invite redemption, and the isolation test — have not been separately confirmed
+and are still owner work.
 
 ### Cutover sequence
 
@@ -1062,8 +1067,9 @@ After at least two weeks of household use, review evidence in this order:
    place. Do not start with drag-and-drop.
 2. If source images frequently disappear or personal photos are desired, enable
    Firebase Storage on Blaze with budget alerts and client-side resize to WebP.
-3. If manual fallback is common, quantify failed source sites before considering
-   a broader parser, headless browser, or optional LLM.
+3. If manual fallback is common, quantify failed source sites first, then read
+   “Publisher blocks on recipe import” below. A broader parser or an LLM does not
+   help against a publisher block, and a headless browser is ruled out.
 4. If store layouts matter in practice, add user-ordered aisle sections within
    each store.
 5. If duplicate ingredient naming causes visible list pain, introduce aliases
@@ -1072,6 +1078,49 @@ After at least two weeks of household use, review evidence in this order:
    “what can we make with what we have?”
 7. Nutrition, price tracking, OCR, social import, reminders, and grocery-order
    integrations stay last because they are costly, approximate, or fragile.
+
+### Publisher blocks on recipe import
+
+Some publishers refuse server-side fetches outright. This is a product boundary,
+not a bug to engineer around, and it needs to be understood before anyone
+proposes a fix.
+
+Evidence gathered 2026-08-02 against
+`https://www.allrecipes.com/recipe/52407/chicken-shawarma/`:
+
+- The response is `HTTP 402` from Cloudflare, with a body directing readers to
+  `support@people.inc` and automated access to `contentlicensing@people.inc`.
+  Allrecipes is a People Inc. property, and the block is deliberate and
+  advertised.
+- The same 402 was returned to Forkast's importer user-agent and to an ordinary
+  desktop Chrome user-agent, both from a residential connection. The block is
+  therefore not about Netlify's IP range and not defeated by a header change.
+- Budget Bytes and Sally's Baking still import cleanly. This is site-specific
+  publisher policy, not a general import failure.
+
+**Ruled out.** Headless browsers (Playwright, Puppeteer), stealth plugins,
+residential proxies, user-agent spoofing, and challenge-solving services are all
+out of scope. They exist to defeat an access control the publisher deliberately
+set, which contradicts the import boundary already stated in `PRODUCT.md`, and
+`PRODUCT.md` is the governing document here. They are also fragile — the arms
+race resumes on every deploy — and running a browser engine inside a Netlify
+function is impractical on this cost plan regardless.
+
+**The legitimate path, if blocked sites turn out to matter.** Move the fetch to
+the user's own browser, where the user is a genuine reader with a normal session,
+instead of asking a server to impersonate one. Two shapes, both deferred until
+the failed-site count justifies them:
+
+- The iOS "Save to Forkast" Shortcut already opens the import route from Safari.
+  It can pass the page contents Safari already loaded, and Forkast parses that
+  instead of fetching the URL server-side.
+- A desktop paste-the-page fallback for the same reason.
+
+Either shape means accepting untrusted HTML from the client, so the existing
+server-side protections need equivalents: size limits, content-type and
+structure validation, sanitisation before parsing, and no trust in client-claimed
+provenance. The SSRF, DNS, and redirect guards on the server path stay as they
+are, because that path remains the default for sites that permit it.
 
 ## 14. Definition of MVP complete
 
