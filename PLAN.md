@@ -21,9 +21,15 @@ narrative accounts of fixed bugs) remains in the log.
   code remains. The owner completed a real production sign-in on 2026-08-02.
   Getting there required two fixes in Forkast's own delivery layer, both now
   invariants below.
-- Email/password is still enabled in Firebase as obsolete bootstrap
-  configuration, and the disposable password account still exists. Both are due
-  for removal — see the continuation checklist.
+- **Email/password sign-in is disabled** in Firebase as of 2026-08-03; Google is
+  the only enabled provider. There was nothing to delete alongside it: the
+  project contains exactly one Auth account, Google-only, with no password
+  credential. The disposable password account described in earlier handoffs no
+  longer exists.
+- The single household is owned by that account, has City Market and Costco
+  seeded, and holds one expired, unused invite. Whether it is the original
+  bootstrap household or a fresh one, it is now the owner's live household and
+  must not be deleted.
 - Website import works on most sites and is blocked by a few publishers. This is
   measured, not assumed: see Section 5.
 - The local service-account key lives outside the repository at
@@ -105,12 +111,13 @@ Milestones 0–6 of the original plan are complete. Do not rebuild them.
 ### Continuation checklist
 
 1. Confirm a clean tree on `main`.
-2. Disable Firebase Email/Password, confirm the owner's Google session still
-   works, then delete the disposable password Auth user and recursively delete
-   only its test household/profile tree using privately resolved exact IDs. Never
-   record those IDs in Git.
-3. Confirm the owner's household was created with City Market and Costco seeded,
-   and that sign-out then sign-back-in preserves access. Not yet verified.
+2. Done 2026-08-03: Email/Password disabled, and no disposable account existed to
+   delete. Do not delete the remaining account or household — they are the
+   owner's. If an account ever does need removing, resolve exact IDs privately
+   and never record them in Git.
+3. Household bootstrap is verified server-side: one household, owner role
+   correct, City Market and Costco both seeded. Still unverified by the owner:
+   that sign-out then sign-back-in preserves access on a real device.
 4. Have Marla sign in with Google and redeem a fresh one-time invite; confirm
    both accounts share the household. Then confirm an unrelated Google user with
    no invite gets an isolated household and cannot read the first one. Remove any
@@ -247,9 +254,13 @@ guide here. The same 402 was returned to both Forkast's user-agent and an
 ordinary desktop Chrome user-agent from a residential connection, so this is
 neither a datacenter-IP problem nor a header problem.
 
-Not yet measured: whether any currently-working site refuses Netlify's datacenter
-IPs specifically. Production evidence so far is consistent with the table
-(Budget Bytes works, Allrecipes blocked).
+Confirmed through production on 2026-08-03: Netlify's datacenter IPs make no
+difference. Seven working sites were imported end-to-end through the live
+function — Food Network, Food.com, BBC Good Food, Bon Appétit, NYT Cooking,
+Budget Bytes, and RecipeTin Eats — all returning complete recipes (Food Network
+15 ingredients and 9 steps; NYT Cooking 7 and 4). Allrecipes, run as a control in
+the same batch, failed with `FETCH_FAILED` as expected. The residential table
+above therefore holds for production.
 
 **Ruled out permanently.** Headless browsers (Playwright, Puppeteer), stealth
 plugins, residential proxies, user-agent spoofing, and challenge-solving services
