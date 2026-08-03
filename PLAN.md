@@ -1,514 +1,314 @@
 # Forkast implementation plan
 
-Last updated: 2026-08-02
+Last updated: 2026-08-03
 
-This document is the source of truth for continuing Forkast in a fresh Codex
-task. It supersedes the attached Claude research where that research conflicts
-with the decisions below.
+This is the implementation authority for continuing Forkast in a fresh task.
+`PRODUCT.md` is the product authority; `DESIGN.md` is the visual authority;
+`README.md` holds operational setup. Git history is the record of what was built
+and why — this document was pruned on 2026-08-03 to keep it readable, and the
+removed detail (per-milestone task lists, the delivery-history commit list, and
+narrative accounts of fixed bugs) remains in the log.
 
 ## 1. Current state
 
-- Repository: `git@github.com:adilio/Forkast.git`
-- Local checkout: `/Users/adil/Code/Forkast`
-- Default and deployment branch: `main`
-- Latest implementation commit at this update:
-  `af7cc06 Record the service-worker sign-in fault`
-- Netlify project: `forkast-4dl`
-- Netlify fallback URL: <https://forkast-4dl.netlify.app>
-- Production URL: <https://forkast.4dl.ca>
-- Cloudflare DNS: DNS-only CNAME `forkast.4dl.ca` to
-  `forkast-4dl.netlify.app`
-- The Google provider, support email, Firebase authorized domains, OAuth
-  origins/redirect URIs, and redirect-safe Netlify auth proxy are configured.
-  The Google-only cutover in Section 13 is implemented and deployed: password
-  sign-in, credential linking, and every migration path are gone from the
-  product, and the signed-out screen offers one **Continue with Google** action.
-- The `auth/internal-error` is diagnosed and fixed. It was never a provider or
-  proxy fault: the site's own Content-Security-Policy used `script-src 'self'`,
-  which refused `https://apis.google.com/js/api.js` — the gapi bootstrap the
-  Firebase SDK loads for both the popup and redirect flows — so the SDK aborted
-  before opening the popup. `f5dbbec` allows that origin in `script-src` and
-  `frame-src`, and the load was confirmed to succeed on the live origin
-  afterwards.
-- Google sign-in then hung on the boot screen, which was a second and
-  independent fault: the service worker was answering Firebase's auth handler.
-  Workbox serves the precached `index.html` for every in-scope navigation except
-  denylisted paths, and the denylist covered only `/.netlify/*` and `/api/*`.
-  Because `netlify.toml` proxies `/__/auth/*` to Firebase Hosting on our own
-  origin, the redirect back from Google — and the popup's own window — were
-  served the React app instead of the handler, so the result was never posted
-  back and the pending redirect never settled. `6b7fac7` adds `/^\/__\//` to the
-  denylist. Verified in production both ways: that URL rendered the app shell and
-  routed to `/recipes` before, and returns Firebase's handler after. `curl`
-  always looked healthy because it has no service worker; this fault was only
-  observable in a browser that had visited the site.
-- **Google sign-in works in production.** The owner completed a real Google
-  sign-in on 2026-08-02, after both faults above were fixed. Sign-in is no longer
-  a blocker for any remaining acceptance work.
-- A delivery fault was found and fixed while verifying the CSP change.
-  The service worker precaches `index.html` and replays its cached response
-  headers, and Workbox refetches it only when the document hash changes, so a
-  deploy touching only `netlify.toml` never reached installed clients. `94b182f`
-  stamps Netlify's `COMMIT_REF` into the document, tying the precache revision to
-  the deploy. Header and redirect changes now propagate on the next visit.
-- Firebase project `forkast-4dl` is provisioned on the Spark plan. Email/password
-  Authentication remains enabled only as obsolete bootstrap configuration and
-  must be disabled during the Google-only cutover. Firestore Standard in
-  `us-west1` is enabled. Storage, Analytics, Gemini, and Firebase Hosting are
-  intentionally disabled. See the continuation checklist and Section 13.
-- Public Firebase web configuration is set for local/Netlify use. The private
-  `FIREBASE_SERVICE_ACCOUNT_JSON` is installed as a protected, production-only
-  Netlify secret and privileged functions now work. Netlify Free does not allow
-  granular environment-variable scopes, so the secret necessarily uses all
-  site scopes. The local key copy is outside the repository at
-  `/Users/adil/Code/forkast-4dl-firebase-adminsdk-fbsvc-1b9b26cd84.json`, has
-  mode `0600`, must never be committed, and may be removed after operations no
-  longer need the local copy.
-- Firebase CLI is authenticated. The current `firestore.rules` and indexes were
-  deployed successfully and the Firebase Console visibly confirmed the
-  `createdBy`-integrity revision published at 2026-08-01 10:13 local time.
-- A disposable production acceptance account proved household bootstrap, seeded
-  City Market and Costco, and created a valid one-time 24-hour invite. No real
-  user relies on that UID, household, invite, or data. Clean Google-only owner,
-  Marla, and isolation acceptance remains outstanding.
-- Authenticated live website import reached the production function. Allrecipes
-  refuses the fetch and this is now understood rather than assumed: see
-  “Publisher blocks on recipe import” below. Forkast correctly preserved the
-  source URL and opened the recoverable manual editor. Budget Bytes and Sally's Baking produced
-  complete editable production drafts without saving private data. The Sally's
-  pass exposed visible HTML entities; `8b6960b` fixed them and the same live URL
-  passed afterward. Household-specific source sites still need private acceptance.
+- Repository `git@github.com:adilio/Forkast.git`, checkout
+  `/Users/adil/Code/Forkast`, deploy branch `main`.
+- Production <https://forkast.4dl.ca>; Netlify project `forkast-4dl`; fallback
+  <https://forkast-4dl.netlify.app>; Cloudflare DNS-only CNAME.
+- Firebase project `forkast-4dl`, Spark plan, Firestore Standard `us-west1`.
+  Storage, Analytics, Gemini, and Firebase Hosting are intentionally disabled.
+- **Sign-in works.** Google is the only method; no password or account-linking
+  code remains. The owner completed a real production sign-in on 2026-08-02.
+  Getting there required two fixes in Forkast's own delivery layer, both now
+  invariants below.
+- Email/password is still enabled in Firebase as obsolete bootstrap
+  configuration, and the disposable password account still exists. Both are due
+  for removal — see the continuation checklist.
+- Website import works on most sites and is blocked by a few publishers. This is
+  measured, not assumed: see Section 5.
+- The local service-account key lives outside the repository at
+  `/Users/adil/Code/forkast-4dl-firebase-adminsdk-fbsvc-1b9b26cd84.json`, mode
+  `0600`. Never commit it. In production it is the Netlify secret
+  `FIREBASE_SERVICE_ACCOUNT_JSON` (all scopes — Netlify Free has no granular
+  scoping).
 
-Repository workflow is defined by `/Users/adil/Code/AGENTS.md`: complete and
-verify requested changes, then commit and push directly to `main`; do not create
-branches or pull requests.
+### Operational invariants
+
+Each of these was learned from a production failure. Breaking one fails quietly.
+
+- **CSP must allow `https://apis.google.com`** in `script-src` and `frame-src`
+  (`netlify.toml`). Firebase Auth loads its gapi bootstrap there for both the
+  popup and redirect flows. Without it, sign-in fails with `auth/internal-error`
+  before the popup opens.
+- **`/__/` must stay in `navigateFallbackDenylist`** (`vite.config.ts`). The
+  Firebase auth handler is proxied onto our own origin, so otherwise the service
+  worker serves the app shell in its place and sign-in hangs on the boot screen
+  with no error at all.
+- **The build stamps `COMMIT_REF` into `index.html`** (`vite.config.ts`). The
+  service worker precaches the document *with its response headers* and only
+  refetches when the document hash changes, so without the stamp a header-only
+  deploy never reaches an installed client.
+- **Verify delivery-layer changes in a browser, not with `curl`.** `curl` has no
+  service worker and reported everything healthy while two of the faults above
+  were live.
+- Firebase Admin stays on the 13.x line (14.x bundles an ESM-only `jose` path
+  that crashes in Netlify's CommonJS packaging). Netlify functions need
+  `AWS_LAMBDA_JS_RUNTIME=nodejs24.x`. PostCSS is pinned to the earliest
+  audited-safe release old enough for Netlify's lagging npm mirror.
 
 ### Implemented MVP
 
-- Responsive React/TypeScript/Vite PWA with the cool-paper kitchen-pass visual
-  system recorded in `DESIGN.md`; route briefs and the selected design contract
-  are preserved in the repository.
-- Google-only popup/redirect sign-in, sign-out, persistent sessions,
-  first-household bootstrap, seeded City Market/Costco stores, and one-time
-  household invitations. No password or account-linking code remains.
-- Recipe list/search/favorites, manual create/edit/delete, focused draft recovery,
-  recipe details, source attribution/images, serving scaling, and selected or all
+- Responsive React/TypeScript/Vite PWA using the cool-paper kitchen-pass system
+  in `DESIGN.md`.
+- Google-only sign-in (popup on desktop, redirect on iPhone and installed PWA),
+  sign-out, persistent sessions, first-household bootstrap, seeded City
+  Market/Costco stores, and one-time household invitations.
+- Recipe list, search, favorites, manual create/edit/delete, draft recovery,
+  details, source attribution and images, serving scaling, and selected-or-all
   ingredient transfer to shopping.
-- Authenticated JSON-LD website importer with editable review/fallback and SSRF,
-  redirect, DNS/IP, timeout, response-size, and content-type protections.
+- Authenticated JSON-LD website importer with an editable review/fallback and
+  SSRF, redirect, DNS/IP, timeout, response-size, and content-type protections.
 - Plan to Eat CSV preview/import with unknown-field preservation, duplicate
-  decisions, progress, and downloadable completion report.
-- Realtime/offline per-store shopping lists with quantities, manual items,
+  decisions, progress, and a downloadable completion report.
+- Realtime/offline per-store shopping lists: quantities, manual items,
   check/uncheck, move/delete, clear confirmation, delete undo, safe exact-item
-  combining, remembered store routing, and per-store transfer receipts.
-- Full versioned household JSON export, schema.org Recipe JSON-LD export, and
-  source/image manifest; restore guidance is in `README.md`.
+  combining, remembered store routing, per-store transfer receipts.
+- Full versioned household JSON export, schema.org Recipe JSON-LD export, and a
+  source/image manifest. Restore guidance is in `README.md`.
 - Netlify Functions, production headers, PWA install/Shortcut instructions,
-  Firestore security rules, CI, unit/rules/browser tests, and operational docs.
+  Firestore rules, CI, and unit/rules/browser tests.
+
+Milestones 0–6 of the original plan are complete. Do not rebuild them.
 
 ### Verification completed
 
 - `npm run check` passes: TypeScript, ESLint, Prettier, 29 unit tests, and the
-  production/PWA build. The count fell by one when the linking and migration
-  tests were replaced with Google-only popup, redirect-completion,
-  redirect-failure, and cancellation coverage, plus an assertion that no
-  user-facing auth message mentions a password or linking.
-- The CSP fix was verified against production rather than assumed. Before it, a
-  script element pointing at `https://apis.google.com/js/api.js` on the live
-  origin failed to load and reported `script-src-elem` through a
-  `securitypolicyviolation` event; after the deploy reached the service worker,
-  the same script loaded and exposed `gapi`. The `/__/auth/*` proxy was probed
-  separately and serves `iframe`, `iframe.js`, `experiments.js`, and `handler`
-  correctly, without the app's CSP.
-- The signed-out screen was measured at 1440, 390, and 320px after the Impeccable
-  layout pass: no horizontal overflow, a 52px touch target, and the action column
-  reflowing 383 → 350 → 280px.
-- Six Playwright Chromium/Mobile Safari smoke tests passed, including narrow
-  iPhone and desktop flows. Manual visual inspection at 1440, 390, and 320 px
-  found no horizontal overflow, console errors, or blocked primary controls.
-- The Firestore emulator rules suite passes in GitHub Actions. Workflow run
-  `30692586571` was green after fixing test discovery; later commits
-  `a033fef` and `c1d49ac` also completed green verification runs. Workflow run
-  `30693089349` for `d17202f` completed green in both `verify` and `rules` jobs.
-  Workflow runs `30714565583` for `9060e88` and `30714681384` for `f736812`
-  also completed green.
+  production/PWA build. Auth tests cover Google-only popup, redirect completion,
+  redirect failure, and cancellation, and assert that no user-facing auth message
+  mentions a password or linking.
+- Playwright Chromium/Mobile Safari smoke tests pass. The signed-out screen was
+  measured at 1440, 390, and 320px: no horizontal overflow, 52px touch target.
+- The Firestore emulator rules suite passes in GitHub Actions; recent workflow
+  runs are green in both `verify` and `rules` jobs.
 - `npm audit --audit-level=high` passes. Twelve known moderate transitive issues
-  remain in development/administrative tooling; the offered forced downgrade is
-  breaking and was intentionally not applied.
-- Impeccable was used throughout. Its detector was run exactly once and returned
-  no findings; do not rerun it merely for the handoff. Independent critique and
-  finish-reviewer passes were completed, persisted under `.impeccable/`, and all
-  material findings were fixed.
-- The production app, manifest, icons, cache/security headers, and anonymous
-  function boundary were probed. The import function correctly returns
+  remain in dev/admin tooling; the offered forced downgrade is breaking and was
+  intentionally not applied.
+- Impeccable was used throughout. Its detector ran once and returned no findings;
+  **do not rerun it merely for a handoff.** Critique and finish-reviewer passes
+  are persisted under `.impeccable/`.
+- Production probes: the app, manifest, icons, cache/security headers, and the
+  anonymous function boundary behave correctly — anonymous import returns
   `401 {"message":"Sign in to continue."}` rather than crashing.
-- The disposable acceptance UID and household baseline were verified privately
-  using one-way hashes. The production export action completed, and the backup,
-  portable recipe, manifest, and two-store structure validated without printing
-  or committing household data. None of this test data needs migration.
-
-### Delivery history
-
-- `f26aa24 Build deployable Forkast PWA foundation`
-- `787f835 Build secure Forkast household MVP`
-- `446a63a Fix Firestore rules test discovery`
-- `a033fef Fix Netlify Firebase function runtime`
-- `c1d49ac Stabilize Netlify dependency install`
-- `d17202f Pin Netlify-compatible PostCSS`
-- `efe6e8e Plan Google sign-in for stage two`
-- `06687cf Harden production response types`
-- `58556e4 Add safe Google account migration`
-- `3f5752b Remove unused Firebase init proxy`
-- `8b6960b Decode recipe JSON-LD entities`
-- `f4a6371 Update Google migration handoff`
-- `30e56cb Use reliable desktop Google auth`
-- `9060e88 Expose safe Google auth diagnostics`
-- `f736812 Update Google migration handoff`
-- `a998c7c Plan clean Google-only launch`
-- `1f49757 Remove password and account-linking sign-in`
-- `f5dbbec Allow Google sign-in through the production CSP`
-- `94b182f Let header-only deploys reach installed clients`
-- `a8ad062 Rebalance the signed-out sign-in panel`
-- `b4a1c04 Update the handoff for the Google-only launch`
-- `e9a3222 Rewrite the signed-out tagline`
-- `6b7fac7 Stop the service worker swallowing Google sign-in`
-- `af7cc06 Record the service-worker sign-in fault`
-
-All listed commits were pushed directly to `origin/main`. Firebase Admin was
-kept on the compatible 13.x line because 14.x bundled an ESM-only `jose` path
-that crashed in Netlify's CommonJS function packaging. Netlify functions use
-`AWS_LAMBDA_JS_RUNTIME=nodejs24.x`. The latest PostCSS override pins the earliest
-audited-safe release old enough for Netlify's lagging npm mirror; this was added
-after an automatic deploy reported that `postcss@8.5.25` was not indexed.
+- A disposable acceptance account proved household bootstrap, store seeding,
+  invite creation, and export structure. No real user depends on that data.
 
 ### Continuation checklist
 
-Start here in a fresh task, in this order:
+1. Confirm a clean tree on `main`.
+2. Disable Firebase Email/Password, confirm the owner's Google session still
+   works, then delete the disposable password Auth user and recursively delete
+   only its test household/profile tree using privately resolved exact IDs. Never
+   record those IDs in Git.
+3. Confirm the owner's household was created with City Market and Costco seeded,
+   and that sign-out then sign-back-in preserves access. Not yet verified.
+4. Have Marla sign in with Google and redeem a fresh one-time invite; confirm
+   both accounts share the household. Then confirm an unrelated Google user with
+   no invite gets an isolated household and cannot read the first one. Remove any
+   synthetic isolation-test data afterwards.
+5. Run the private/physical acceptance work in Section 10 that cannot be
+   automated. Do not commit private CSV, recipe, account, or export data.
+6. Fix blockers, rerun proportional tests, push, and update this section. Only
+   then mark the definition of complete in Section 12.
 
-1. Confirm Git status is clean and `main` is at or beyond `a8ad062`. Steps 2 and
-   3 of the previous checklist — the code cutover and the `auth/internal-error`
-   diagnosis — are complete and deployed. Treat the password-only Auth account,
-   its test household, and its records as disposable acceptance fixtures.
-2. Done on 2026-08-02: the owner signed in with Google in production. If a later
-   sign-in problem appears, separate the two signatures before changing anything.
-   A visible message carries a Firebase code — every unmapped code is surfaced as
-   `Reference: auth/...` — and points at Google or Firebase configuration. A
-   silent hang on "Opening Forkast…" points at Forkast's delivery layer instead;
-   check what `/__/auth/handler` returns in a browser that has the app installed,
-   not with `curl`. Also confirm the household was created with City Market and
-   Costco seeded, then sign out and back in to verify persistence; those
-   sub-checks are not yet confirmed.
-   Confirm the new household is created with City Market and Costco seeded, then
-   sign out and back in to verify persistence.
-3. Now unblocked by step 2: disable Firebase Email/Password, confirm the owner's
-   Google session still works, then delete the disposable password Auth user and
-   recursively delete only its test household/profile data using privately
-   resolved exact IDs. Never record those IDs in Git.
-4. Have Marla sign in with Google and redeem a fresh one-time invite. Verify both
-   accounts share the new household. Then verify an unrelated Google user without
-   an invite creates an isolated household and cannot read the initial household;
-   remove only synthetic isolation-test data afterward.
-5. Finish production function acceptance with the Google accounts and verify
-   successful authenticated extraction on representative live recipe sites. The
-   Allrecipes refusal/fallback path is already verified.
-6. Run the private/physical acceptance work that cannot be automated: real Plan
-   to Eat CSV import and report review, common live recipe sites, Save to Forkast
-   Shortcut on Marla's iPhone, two-account realtime/offline reconciliation,
-   export inspection, PWA install/persistent login on both iPhones, and one week
-   of household use. Do not commit private CSV, recipe, account, or export data.
-7. Fix any acceptance blockers, rerun proportional tests, commit/push `main`, and
-   update this section. Only then mark the definition of MVP complete.
+Remaining owner-only inputs: interactive Google consent for Marla and an
+unrelated test account, the household's own recipe sites and Plan to Eat CSV, two
+physical iPhones, export inspection, and one week of real use. Exact account
+email addresses are deliberately not recorded here.
 
-When changing response headers, redirects, or the CSP, remember that installed
-clients only pick them up because each deploy restamps `index.html`; verify a
-header change with a service-worker-served page, not only a `curl` of the origin.
+If sign-in ever breaks again, separate the two signatures first: a visible
+message carries a Firebase code (every unmapped code is surfaced as
+`Reference: auth/...`) and points at Google or Firebase configuration; a silent
+hang points at Forkast's delivery layer and the invariants above.
 
-Already completed in production: the Google-only build, the CSP fix that
-unblocked Google sign-in, the build stamp that lets header changes reach
-installed clients, Netlify credential setup and redeploy,
-Firebase CLI authorization, latest Firestore rules/index deployment, disposable
-account creation, household bootstrap, store seeding, invite creation,
-authenticated function access, Google auth code/proxy deployment,
-production export structure validation, two successful public-site extractions,
-and the expected live-site failure recovery path. Anonymous import still returns
-no-store HTTP 401 JSON.
+## 2. How to work on this
 
-The remaining owner/private inputs are interactive Google consent for the owner
-and Marla, an unrelated acceptance account, household recipe sites and Plan to
-Eat CSV, two physical iPhones, downloaded-export spot inspection, and the one-week
-usage period. Exact account email addresses are intentionally not recorded in the
-repository.
+The implementing agent is expected to carry work through without pausing for
+routine product, design, dependency, naming, Firebase, Netlify, or testing
+decisions. Use `PRODUCT.md`, this plan, repository evidence, official
+documentation, real browser behavior, and judgment. When several options are
+viable, choose the simplest reversible one that satisfies the acceptance criteria
+and the YAGNI boundary. Do not stop at analysis, scaffolding, or a partial
+vertical slice.
 
-### Autonomous execution mandate
+Ask the owner only when no safe progress remains, when platform policy requires
+approval, or when a genuinely unavailable credential or physical-device action
+blocks a check. A useful but nonessential uncertainty is not a blocker: record it
+and continue with everything independent of it.
 
-The implementing agent is authorized and expected to carry this plan through to
-the complete MVP without pausing after a milestone or asking the owner to choose
-routine product, design, dependency, naming, Firebase, Netlify, testing, or
-implementation details. Use the product facts in `PRODUCT.md`, this plan, current
-repository evidence, official documentation, real browser/device behavior, and
-best engineering judgment. When several choices are viable, choose the simplest
-reversible option that satisfies the acceptance criteria and YAGNI boundary.
+Delivery follows `/Users/adil/Code/AGENTS.md`: the owner's Git identity only,
+never any AI/bot/co-author attribution, work directly on `main`, no branches or
+pull requests, no rewriting published history. Deliver atomically — one coherent
+change at a time, with proportional verification, staged narrowly, pushed to
+`origin/main`, keeping `main` deployable at every commit. Do not squash the work
+into one mega-commit at the end.
 
-Do not stop at analysis, scaffolding, a status report, or a partially working
-vertical slice. Maintain an internal working plan, execute milestones in order,
-verify each one, and continue until the definition of MVP complete is met. Use
-existing authenticated local browser sessions and available tools when setup or
-verification requires a web console. Never wait for aesthetic preferences or
-other optional input; the owner has explicitly delegated those decisions.
+Impeccable is mandatory for material frontend changes, not a final coat of paint.
+Apply `DESIGN.md` consistently, inspect the result in a real browser at narrow
+iPhone and desktop widths, and keep hierarchy, one-handed reach, touch targets,
+text enlargement, safe areas, focus behavior, screen-reader semantics, contrast,
+and reduced motion intact. Visual polish never authorizes deferred features.
 
-If a genuinely unavailable credential, mandatory external approval, or physical
-iPhone action makes one check impossible, exhaust safe alternatives, record the
-exact blocker, and continue every independent task. Ask the owner only when no
-safe progress remains or platform policy requires approval. A useful but
-nonessential uncertainty is not a blocker.
+## 3. Product goal and YAGNI boundary
 
-### Atomic Git delivery policy
+Forkast replaces the parts of Plan to Eat this household actually uses: save a
+clean recipe from a website on an iPhone in a few taps, favorite it, scale
+servings, keep synchronized City Market and Costco lists with remembered
+ingredient-to-store routing, and import the existing library from a Plan to Eat
+CSV. Supporting essentials: title/ingredient search, manual recipe CRUD, adding
+whole recipes or selected ingredients to lists, arbitrary grocery items,
+collaborative checking with poor service, Home Screen install, and full export.
 
-- Use only the owner's existing configured Git identity.
-- Never add Codex, AI, bot, generated-by, or co-author attribution to commits,
-  commit messages, source files, or pull-request metadata.
-- Work directly on `main`. Do not create branches, worktrees for branches, or
-  pull requests.
-- Deliver atomically as work progresses: one coherent, reviewable change at a
-  time; run its proportional verification; stage only its files; commit it; push
-  it directly to `origin/main`; confirm the push; then continue immediately to
-  the next coherent change.
-- Keep `main` deployable at every pushed commit. Fix a failing build/deployment
-  before layering unrelated work on top.
-- Preserve unrelated owner changes, never rewrite published history, and do not
-  squash all implementation into one final mega-commit.
+**Explicitly deferred** — deferred is not rejected, but each item needs a real
+household problem to supply its acceptance criteria first:
 
-## 2. Product goal
+- Meal-planning calendar, saved plans, drag-and-drop
+- Pantry/freezer inventory and "what can I make?" queries
+- Nutrition, macros, USDA matching, density tables
+- Price tracking, budgets, grocery-ordering integrations
+- OCR, PDF, screenshot, and social-platform scraping
+- LLM-based parsing
+- Recipe collaboration history and simultaneous editing
+- Ingredient synonyms, taxonomy, automatic aisle classification, volume-to-weight
+  conversion
+- Multiple named list histories, archival, templates
+- Push notifications, reminders, background sync, native apps
+- Locally uploaded recipe photos
+- Roles beyond owner/member, public sharing, multi-household users
+- Analytics, Sentry, feature flags, bespoke admin panel
+- CRDTs, custom sync protocol, separate API server, SQL, microservices
 
-Forkast is a private, low-maintenance household recipe and grocery-list PWA. Its
-first job is to replace the parts of Plan to Eat that this household actually
-uses, not to reproduce Plan to Eat feature-for-feature.
+## 4. Settled decisions
 
-The validated household MVP is:
-
-1. Save a clean recipe from a normal recipe website on an iPhone in a few taps,
-   without the site's ads and backstory.
-2. Star and unstar favorite recipes.
-3. Change the serving count and scale numeric ingredient quantities.
-4. Maintain synchronized shopping lists for City Market and Costco.
-5. Assign ingredients to a store and remember that preference the next time the
-   same ingredient is added.
-6. Import the existing recipe library from a Plan to Eat CSV export.
-
-Supporting essentials that are included by judgment:
-
-- Search the recipe library by title and ingredient.
-- Manually add, edit, and delete a recipe when importing is not possible.
-- Add either a whole recipe or selected ingredients to the shopping lists.
-- Add arbitrary grocery items that do not come from a recipe.
-- Check and uncheck items collaboratively, including with unreliable service.
-- Install Forkast on the iPhone Home Screen as a PWA.
-- Export all household data so Forkast never becomes another lock-in problem.
-
-## 3. Product and architecture decisions
-
-These decisions are settled unless implementation evidence shows that one is
-unworkable.
+Settled unless implementation evidence shows one is unworkable.
 
 | Area | Decision | Reason |
 | --- | --- | --- |
-| Build vs. adopt | Build Forkast | The spouse-validated scope is materially smaller than RecipeSage, and the custom UX is the point of the project. |
-| Client | React, TypeScript, Vite | Boring, familiar, strongly supported, and already reflected in the repository README. |
-| Form factor | Responsive installable PWA | No App Store, native wrapper, or Apple Developer account is needed. |
-| Hosting | Netlify | Explicit preference; project and custom domain already exist. |
-| API | Netlify Functions | Required only for securely fetching third-party recipe pages and a few privileged household operations. |
-| Authentication | Google-only Firebase Authentication | Forkast stores no passwords. There are no production users to migrate, so all password and credential-linking paths are removed. Any Google user may create an isolated household or redeem an invite. |
-| Primary data | Cloud Firestore | Realtime collaboration and built-in offline write queuing remove the need for a custom sync engine. |
-| Images in MVP | Preserve the source image URL; no uploads | Avoids Firebase Storage billing setup and image-processing work until local image ownership is proven necessary. |
-| Image uploads later | Firebase Storage, only if needed | Explicit platform preference, but it requires the Blaze billing plan even when usage stays within no-cost quotas. |
-| Styling | Plain CSS with a small token layer | Avoid choosing and carrying a component framework before the interface demands one. |
-| State | React state plus Firestore listeners | Do not add Redux, Zustand, or TanStack Query unless a demonstrated state problem appears. |
-| Offline | Firestore persistent local cache plus a PWA app shell | Do not build a CRDT, change log, or custom IndexedDB synchronization layer. |
-| Recipe extraction | Server-side JSON-LD/schema.org extraction first | Most established recipe sites publish structured recipe data; this strips the narrative and ads naturally. |
-| Messy imports | Editable review screen and manual paste fallback | More reliable and much smaller than promising universal scraping or adding an LLM in MVP. |
-| Canonical export | Forkast JSON plus schema.org Recipe JSON-LD | Human-recoverable full backup and broadly portable recipe records. |
+| Build vs. adopt | Build Forkast | The validated scope is far smaller than RecipeSage, and the custom UX is the point. |
+| Client | React, TypeScript, Vite | Boring, familiar, strongly supported. |
+| Form factor | Responsive installable PWA | No App Store, wrapper, or Apple Developer account needed. |
+| Hosting | Netlify | Explicit preference; project and domain already exist. |
+| API | Netlify Functions | Only for fetching third-party pages and a few privileged household operations. |
+| Authentication | Google-only Firebase Auth | Forkast stores no passwords. Any Google user may create an isolated household or redeem an invite. |
+| Primary data | Cloud Firestore | Realtime collaboration and offline write queuing without a custom sync engine. |
+| Images | Preserve the source image URL; no uploads | Avoids Firebase Storage billing, which now requires Blaze even inside no-cost quotas. |
+| Styling | Plain CSS with a small token layer | No component framework before the interface demands one. |
+| State | React state plus Firestore listeners | No Redux, Zustand, or query cache without a demonstrated problem. |
+| Offline | Firestore persistent cache plus PWA shell | No CRDT, change log, or custom IndexedDB sync layer. |
+| Recipe extraction | Server-side JSON-LD/schema.org first | Most established sites publish structured data; this strips ads and narrative naturally. |
+| Messy imports | Editable review plus manual fallback | Smaller and more reliable than promising universal scraping or adding an LLM. |
+| Export | Forkast JSON plus schema.org Recipe JSON-LD | Human-recoverable backup and portable records. |
 
-### Why the Claude recommendation is not being followed
+Retained warnings from the original research: URL import is the largest product
+risk, iOS has no Web Share Target API, social platforms cannot be reliably
+scraped, nutrition is approximate, and export must not be an afterthought.
 
-The research recommended adopting self-hosted RecipeSage and, if building,
-using a Cloudflare/D1/R2 stack with a normalized SQL database and a custom
-offline synchronization log. That is credible for the much larger feature set
-the report assumed, but it is not the right plan now:
+## 5. Recipe import
 
-- The household explicitly wants a narrower product than RecipeSage's complete
-  recipe/meal-planning suite.
-- Operating RecipeSage's multi-container stack would create more ongoing work
-  than this small family app needs.
-- The user explicitly prefers Netlify and Firebase over Cloudflare and
-  Supabase.
-- Firestore already supplies realtime listeners, offline persistence, and
-  queued writes. Rebuilding those with IndexedDB, timestamps, and a change log
-  would add risk without improving the two-user shopping-list experience.
-- A large canonical-ingredient ontology, densities, nutrition links, calendar,
-  CRDTs, and OCR are speculative until the household uses the core loop.
+### How capture works today
 
-The research remains useful for its warnings: URL import is the largest product
-risk; iOS does not support the Web Share Target API; social platforms cannot be
-reliably scraped; nutrition calculations are approximate; and data export must
-not be an afterthought.
+iOS Safari has no PWA Web Share Target API, so capture uses a user-installed
+"Save to Forkast" Shortcut: on a recipe page, Share → Save to Forkast, which
+opens `https://forkast.4dl.ca/import?url=<encoded-url>`. Forkast calls its
+authenticated Netlify function, which fetches the page server-side and extracts
+schema.org Recipe JSON-LD into an editable review screen. The import screen also
+has a Paste URL button.
 
-## 4. YAGNI boundary
+Expectations are deliberately honest: sites with JSON-LD work well, sites without
+it show a clear fallback rather than saving junk, the fallback allows manual
+entry, and the source URL is always retained.
 
-### In the MVP
+### Publisher blocks: measured 2026-08-02
 
-- An initial two-user household plus separately isolated households for friends
-- Recipe library, search, manual CRUD, source attribution, and favorites
-- Normal website URL import with an editable confirmation step
-- iPhone Share Sheet workflow through a small user-installed Shortcut
-- Numeric serving scaling without automatic unit conversion
-- Two seeded stores: City Market and Costco
-- Remembered store preference based on a normalized ingredient name
-- One active shopping list per store, manual items, checked state, and realtime
-  collaboration
-- Firestore offline persistence and queued writes
-- Plan to Eat recipe CSV import with preview and error reporting
-- Full JSON/JSON-LD export
-- PWA installation, responsive layouts, and basic accessibility
-- Security rules, import-function safeguards, automated tests, and deployment
+Twenty popular recipe sites were probed with Forkast's exact importer request,
+then checked for the Recipe JSON-LD the extractor needs. **Fifteen work.**
 
-### Explicitly deferred
+| Result | Sites |
+| --- | --- |
+| Works — recipe data extracted | Food Network, Delish, Taste of Home, BBC Good Food, Epicurious, Bon Appétit, Food.com, King Arthur Baking, NYT Cooking, Budget Bytes, Sally's Baking, RecipeTin Eats, Pinch of Yum, Love and Lemons, Minimalist Baker |
+| Blocked | Allrecipes (402), Serious Eats (402), Simply Recipes (402), The Kitchn (403) |
+| Reachable but unstructured | Smitten Kitchen — publishes recipes as prose, no JSON-LD |
 
-- Meal-planning calendar, saved meal plans, and drag-and-drop
-- Pantry/freezer inventory and “what can I make?” queries
-- Nutrition, macros, calories, USDA matching, and density tables
-- Price tracking, budgets, and grocery-ordering integrations
-- OCR, PDF, screenshot, Instagram, TikTok, and Pinterest scraping
-- LLM-based parsing
-- Recipe collaboration history or simultaneous recipe editing
-- Ingredient synonyms, taxonomy, automatic aisle classification, and
-  volume-to-weight conversion
-- Multiple named shopping-list histories, list archival, and list templates
-- Push notifications, reminders, background sync, and native applications
-- Locally uploaded recipe photos
-- Household roles beyond owner/member, public sharing, and multi-household users
-- Analytics, Sentry, feature flags, and a bespoke admin panel
-- CRDTs, a custom sync protocol, a separate API server, SQL, and microservices
+The blocks are concentrated, not an industry trend: Allrecipes, Serious Eats, and
+Simply Recipes are all People Inc. brands behind one Cloudflare pay-per-crawl
+policy that returns `402` with a content-licensing contact in the body. The
+Kitchn (Apartment Therapy) is a separate `403`. All four permit general crawling
+in `robots.txt` — the refusal happens at the CDN edge, so `robots.txt` is no
+guide here. The same 402 was returned to both Forkast's user-agent and an
+ordinary desktop Chrome user-agent from a residential connection, so this is
+neither a datacenter-IP problem nor a header problem.
 
-Deferred does not mean rejected. A deferred feature gets scheduled only after a
-real household problem supplies its acceptance criteria.
+Not yet measured: whether any currently-working site refuses Netlify's datacenter
+IPs specifically. Production evidence so far is consistent with the table
+(Budget Bytes works, Allrecipes blocked).
 
-### Impeccable design and UX mandate
+**Ruled out permanently.** Headless browsers (Playwright, Puppeteer), stealth
+plugins, residential proxies, user-agent spoofing, and challenge-solving services
+all exist to defeat an access control the publisher deliberately set and
+advertised. They contradict the import boundary in `PRODUCT.md`, they are fragile
+enough to break on the publisher's schedule, and a browser engine is impractical
+inside a Netlify function on this cost plan.
 
-Impeccable is mandatory for the frontend work, not an optional final coat of
-paint. `PRODUCT.md` contains the durable product truth. Before the first real UI
-implementation, the agent must use the installed Impeccable skill to establish
-the visual world, create `DESIGN.md`, and record any route-level surface briefs
-the workflow requires. The owner has delegated missing design inputs and the
-direction choice: use Impeccable's assigned/recommended direction and product
-evidence without stopping to ask for preferences.
+### Approved direction: capture from the user's own browser
 
-Treat Forkast as an **Operate** product. Its visual identity should be memorable
-and specific, but expression may never obscure recipe content, list state, or a
-familiar control. Design for the actual scenes: one-handed iPhone capture,
-cooking at a counter, grocery-store glare and distraction, two-person realtime
-updates, long ingredient names, empty/new accounts, loading, partial import,
-offline, syncing, conflict, and error states.
+The owner approved this on 2026-08-03: for pages Forkast's server cannot fetch,
+the user opens the page in their own browser as a genuine reader and shares it
+into Forkast, which parses the HTML the browser already has. No access control is
+circumvented, because there is nothing to circumvent — it is a person reading a
+website and choosing what to do with the page.
 
-Impeccable requirements for every user-facing milestone:
+Not yet built, and still gated on evidence: build it when the household's own
+failed-site count justifies it, not speculatively. Two shapes:
 
-- Inspect the implemented surface in a real browser at representative narrow
-  iPhone and desktop widths; screenshots and DOM assertions complement rather
-  than replace visual inspection.
-- Apply the chosen visual system consistently to navigation, typography,
-  controls, forms, recipe content, shopping states, feedback, and empty states.
-- Avoid a generic dashboard, repetitive card grid, timid template styling, and
-  decorative effects that compete with operation.
-- Maintain excellent hierarchy, one-handed reach, comfortable touch targets,
-  text enlargement, safe-area behavior, keyboard/focus behavior, screen-reader
-  semantics, contrast, reduced motion, and fast first load.
-- Use purposeful motion only where it clarifies state or spatial change.
-- Author real product-appropriate sample content for development and tests, label
-  synthetic demonstration data where needed, and never invent commercial proof.
-- After material UI work, run Impeccable's detector once over the changed
-  targets, resolve findings, then perform its independent finish-reviewer pass.
-- Before MVP completion, run Impeccable critique, adapt, audit, harden, and
-  polish passes across the complete core flow; implement the material fixes and
-  re-verify mobile and desktop.
+- Extend the existing iOS Shortcut to pass the page contents Safari already
+  loaded, instead of only the URL.
+- A desktop paste-the-page fallback for the same reason.
 
-Visual polish does not authorize deferred product features. Impeccable should
-raise the craft of the agreed workflow, not expand its scope.
+Both accept untrusted HTML from the client, so the server path's protections need
+equivalents on the new path:
 
-## 5. Target user experience
+- Enforce a size limit before parsing, and reject anything that is not HTML.
+- Sanitize before parsing; never execute page scripts; parse JSON-LD defensively.
+- Do not trust client-claimed provenance — treat a supplied source URL as a
+  label, validate it, and keep it clearly separate from parsed content.
+- Return and store only normalized recipe fields, never the whole page.
+- Keep the server fetch path as the default for sites that permit it; the
+  browser path is a fallback, not a replacement.
 
-### 5.1 Save from an iPhone website
+`PRODUCT.md` needs no change: it already names the Shortcut as the capture
+mechanism, and its rule against bypassing login walls, CAPTCHAs, and bot
+protection is upheld by this design rather than strained by it.
 
-Because iOS Safari does not support the PWA Web Share Target API, Forkast cannot
-appear directly in the Share Sheet as a web app. The MVP flow is:
+Smitten Kitchen is a separate problem — access is fine, structure is absent. That
+would need a fallback parser (microdata, `h-recipe`, or recipe-plugin markup),
+which is its own decision and is not authorized by the above.
 
-1. Install a supplied “Save to Forkast” iOS Shortcut once.
-2. On a recipe page, tap Share, then “Save to Forkast.”
-3. The Shortcut opens `https://forkast.4dl.ca/import?url=<encoded-url>`.
-4. Forkast calls its authenticated Netlify import function.
-5. Forkast displays only the extracted title, image, servings, ingredients, and
-   instructions in an editable review screen.
-6. Tap Save.
+### Evidence-led decision queue
 
-The same import screen also has a Paste URL button for use without the Shortcut.
-The first technical spike must validate this exact flow on the wife's iPhone.
-If opening a query URL from Shortcuts does not preserve an acceptable login
-experience, adjust the Shortcut flow before building the rest of the importer.
+After at least two weeks of household use, review evidence in this order:
 
-Import expectations must be honest:
-
-- Mainstream recipe sites with schema.org Recipe JSON-LD should work well.
-- Sites without structured data show a clear fallback instead of saving junk.
-- The fallback lets the user paste/edit the title, ingredients, and directions.
-- Login-walled or bot-protected social sites are not supported in MVP.
-- The source URL is always retained.
-
-### 5.2 Browse and use a recipe
-
-- Recipe cards show image when available, title, favorite state, and source.
-- Search filters locally by title and ingredient name. The household-scale
-  library is small enough that a dedicated search service is unnecessary.
-- The recipe view has a serving stepper/input. Changing it never mutates the
-  saved base recipe.
-- Parsed numeric quantities scale; text-only quantities such as “to taste” stay
-  unchanged.
-- A user can select all or individual ingredients and add them to shopping.
-- Import output is always editable so parsing imperfections do not trap data.
-
-### 5.3 Shop at two stores
-
-- Shopping opens to two obvious tabs or sections: City Market and Costco.
-- Each item is its own Firestore document so two users checking different items
-  do not overwrite each other.
-- Adding an ingredient uses its remembered store. Unknown ingredients ask for a
-  store, defaulting to the last-used store for convenience.
-- Moving an item can optionally update that ingredient's future store
-  preference.
-- Compatible exact-name/unit items may be combined. Ambiguous quantities remain
-  separate; do not attempt risky unit conversion.
-- Checked items remain visible in a collapsed section until explicitly cleared.
-- Manual add must be one fast input, with store determined by the current tab.
-- Cached lists remain readable and checkable without connectivity; Firestore
-  sends queued changes when the app returns online.
-
-### 5.4 Import Plan to Eat
-
-1. User exports the Plan to Eat recipe book as CSV from its website.
-2. Forkast parses the file in the browser; the raw file is not uploaded.
-3. A preview reports recognized columns, recipe count, duplicates, warnings, and
-   rows that cannot be imported.
-4. User confirms the import.
-5. Recipes are written in conservative batches and progress is shown.
-6. A completion report is downloadable and failed rows remain recoverable.
-
-The importer maps title, description, servings, preparation/cook time, source
-URL, image URL when present, ingredients, directions, tags/categories, notes,
-and favorite state when the export supplies them. Unknown columns are preserved
-in an `importMetadata` object rather than silently discarded. Duplicate
-detection first uses normalized source URL, then normalized title; the user can
-skip or import a duplicate.
-
-This migration covers recipes only. Existing meal plans and historical shopping
-lists are out of scope unless an actual export later proves both useful and easy
-to support.
+1. If recipes are regularly planned ahead, add a simple week view with tap to
+   place. Do not start with drag-and-drop.
+2. If source images frequently disappear or personal photos are wanted, enable
+   Firebase Storage on Blaze with budget alerts and client-side WebP resizing.
+3. If manual fallback is common, count the failing sites, then act on Section 5.
+   A broader parser or an LLM does not help against a publisher block.
+4. If store layouts matter in practice, add user-ordered aisle sections per store.
+5. If duplicate ingredient naming causes visible list pain, introduce aliases
+   gradually from user corrections rather than importing a global ontology.
+6. Consider pantry/freezer inventory only if the household repeatedly asks "what
+   can we make with what we have?"
+7. Nutrition, price tracking, OCR, social import, reminders, and grocery-order
+   integrations stay last — costly, approximate, or fragile.
 
 ## 6. Technical architecture
 
@@ -516,47 +316,33 @@ to support.
 iPhone / desktop PWA
   ├── Netlify CDN: React application and service worker
   ├── Firebase Auth: persistent household sign-in
-  ├── Firestore web SDK: recipes, preferences, and realtime shopping items
+  ├── Firestore web SDK: recipes, preferences, realtime shopping items
   └── /.netlify/functions/import-recipe
         ├── verifies the Firebase ID token
         ├── validates and safely fetches an external URL
         └── extracts schema.org Recipe JSON-LD into a draft response
 ```
 
-The browser writes household data directly to Firestore under security rules.
-The import function does not save a recipe; it returns an untrusted draft for
-the signed-in user to review. This keeps the function small and the normal CRUD
-path consistent.
+The browser writes household data directly to Firestore under security rules. The
+import function does not save a recipe; it returns an untrusted draft for the
+signed-in user to review, which keeps the function small and the CRUD path
+consistent.
 
-### Proposed dependencies
-
-Keep the dependency list intentionally short and verify current versions when
-implementation begins:
-
-- Runtime: React, React DOM, React Router, Firebase modular web SDK, Zod
-- CSV import: Papa Parse
-- Ingredient parsing: `parse-ingredient`, wrapped behind Forkast's own adapter
-- PWA: `vite-plugin-pwa`/Workbox
-- Function parsing: Cheerio plus small schema.org/JSON-LD normalization code
-- Tests: Vitest, React Testing Library, `@testing-library/user-event`,
-  Playwright, and Firebase Emulator Suite rules tests
-- Tooling: TypeScript, ESLint, Prettier
-
-Do not add a UI framework, global state package, query cache, date library, or
-form library until plain React becomes demonstrably painful.
+Dependencies are deliberately short: React, React DOM, wouter, Firebase modular
+SDK, Zod, Papa Parse, `parse-ingredient` behind Forkast's own adapter,
+`vite-plugin-pwa`/Workbox, Cheerio in the function, and Vitest / React Testing
+Library / Playwright / Firebase Emulator Suite for tests. Do not add a UI
+framework, global state package, query cache, date library, or form library until
+plain React becomes demonstrably painful.
 
 ### Firestore layout
 
 ```text
 users/{uid}
-  displayName
-  email
-  householdId
+  displayName, email, householdId
 
 households/{householdId}
-  name
-  ownerUid
-  createdAt
+  name, ownerUid, createdAt
 
 households/{householdId}/members/{uid}
   role                 # owner | member
@@ -564,23 +350,11 @@ households/{householdId}/members/{uid}
 
 households/{householdId}/invites/{inviteId}
   tokenHash            # never expose the raw token after creation
-  expiresAt
-  createdBy
-  usedAt
+  expiresAt, createdBy, usedAt
 
 households/{householdId}/recipes/{recipeId}
-  title
-  description
-  sourceUrl
-  sourceHost
-  imageUrl
-  baseServings
-  ingredients[]
-  instructions[]
-  notes
-  tags[]
-  starred
-  importMetadata
+  title, description, sourceUrl, sourceHost, imageUrl, baseServings,
+  ingredients[], instructions[], notes, tags[], starred, importMetadata,
   createdAt, createdBy, updatedAt, updatedBy
 
 households/{householdId}/stores/{storeId}
@@ -588,22 +362,11 @@ households/{householdId}/stores/{storeId}
   sortOrder
 
 households/{householdId}/ingredientStoreRules/{normalizedIngredientKey}
-  displayName
-  storeId
-  updatedAt, updatedBy
+  displayName, storeId, updatedAt, updatedBy
 
 households/{householdId}/shoppingItems/{itemId}
-  name
-  normalizedName
-  quantity
-  quantityMax
-  unit
-  note
-  storeId
-  checked
-  manual
-  sourceRecipeId
-  sourceIngredientId
+  name, normalizedName, quantity, quantityMax, unit, note, storeId,
+  checked, manual, sourceRecipeId, sourceIngredientId,
   createdAt, createdBy, updatedAt, updatedBy
 ```
 
@@ -622,557 +385,169 @@ type RecipeIngredient = {
 };
 ```
 
-Embedding ingredients keeps a recipe read to one document and matches the way
-ingredients are edited. Individual shopping items remain separate documents
-because their checked/store state changes frequently and concurrently.
+Embedding ingredients keeps a recipe read to one document and matches how
+ingredients are edited. Shopping items stay separate documents because their
+checked/store state changes frequently and concurrently — never store a whole
+list as one array or document.
 
-The likely Firestore recipe document limit is not a practical concern for
-normal recipes, but the importer must reject an abnormally large record with a
-useful error instead of attempting an oversized write.
+## 7. Security constraints
 
-### Authentication and household onboarding
-
-- Launch with Google as the only sign-in method and browser-local persistence.
-  Do not collect or store Forkast passwords and do not add SMS or magic links.
-- There are no production users or data to migrate. Remove password auth and
-  credential-linking logic completely; the disposable bootstrap account and
-  household may be deleted after exact targets are resolved privately.
-- The first user creates the household through an authenticated Netlify
-  Function and becomes owner. Keeping bootstrap writes server-side avoids a
-  permissive special case in Firestore rules.
-- Any Google user without a membership may create an isolated household.
-- Provide a short-lived, single-use household invite link/code generated by an
-  authenticated Netlify Function. Store only its hash and expiry.
-- Marla signs in with Google and redeems the owner's invite once.
-- After onboarding, normal operation does not depend on Netlify Functions.
-- The PWA must retain cached recipes and lists through ordinary auth-token
-  refreshes and temporary network loss.
-
-### Firestore security rules
-
-Rules are a release blocker, not polish:
+Firestore rules are a release blocker, not polish:
 
 - A signed-in user can read their own `users/{uid}` record.
-- A user can read/write a household subcollection only if a matching household
-  membership document exists.
-- Clients cannot make themselves an owner or add arbitrary members.
-- Recipe and shopping writes validate allowed fields and basic types.
-- Store IDs on shopping items must reference one of the household's stores.
-- Invite creation/redemption and membership changes happen through verified
-  server functions.
-- Rules receive emulator tests for owner, member, non-member, unauthenticated,
+- Household subcollection access requires a matching membership document.
+- Clients cannot make themselves owner or add arbitrary members; invite creation,
+  redemption, and membership changes go through verified server functions.
+- Recipe and shopping writes validate allowed fields and basic types, and store
+  IDs must reference one of the household's stores.
+- Emulator tests cover owner, member, non-member, unauthenticated,
   malformed-write, and cross-household cases.
 
-### Secure recipe fetching
+The import function is an SSRF boundary and stays one:
 
-An arbitrary URL fetcher is an SSRF boundary and must be treated as such even
-for a family app:
-
-- Require and verify a Firebase ID token, then confirm that the user belongs to
-  a Forkast household before allowing a fetch.
-- Accept only `http` and `https`; prefer HTTPS.
-- Reject credentials in URLs and nonstandard ports.
+- Require and verify a Firebase ID token, then confirm household membership.
+- Accept only `http`/`https`; reject credentials in URLs and nonstandard ports.
 - Resolve the hostname and reject loopback, link-local, private, multicast, and
-  cloud metadata addresses for both IPv4 and IPv6.
-- Revalidate every redirect and cap redirect count.
-- Apply connection and total timeouts, a response-size limit, and an HTML-only
-  content-type policy.
-- Send a truthful Forkast user agent and do not bypass CAPTCHAs or bot defenses.
-- Parse JSON-LD defensively; never execute page scripts.
-- Return only normalized recipe fields, not the entire third-party page.
-- Add a small per-user rate limit and structured error codes.
+  cloud-metadata addresses for IPv4 and IPv6.
+- Revalidate every redirect and cap the redirect count.
+- Apply timeouts, a response-size limit, and an HTML-only content-type policy.
+- Send a truthful Forkast user agent and never bypass CAPTCHAs or bot defenses.
+- Parse JSON-LD defensively, never execute page scripts, and return only
+  normalized recipe fields.
+- Keep the per-user rate limit and structured error codes.
 
-## 7. Serving-size behavior
+## 8. Behavior rules
 
-- Save an immutable `baseServings` with the recipe.
-- Display factor = requested servings / base servings.
-- Scale `quantity` and both ends of a range when `scalable` is true.
-- Leave absent/non-numeric quantities unchanged.
-- Render common kitchen fractions where the result is close enough; otherwise
-  use a sensible decimal with no false precision.
-- Do not convert cups to grams, merge unlike units, or apply ingredient density.
-- The review/editor lets the user correct a parsed ingredient and mark a line as
-  non-scalable.
-- Tests cover integers, decimals, Unicode/mixed fractions, ranges, zero/missing
-  servings, “to taste,” and common rounding cases.
+**Serving scaling.** Save an immutable `baseServings`; display factor = requested
+÷ base. Scale `quantity` and both ends of a range when `scalable`. Leave
+absent/non-numeric quantities alone. Render common kitchen fractions when close
+enough, otherwise a sensible decimal with no false precision. Never convert cups
+to grams, merge unlike units, or apply densities. The editor can correct a parsed
+ingredient and mark a line non-scalable. Tests cover integers, decimals,
+Unicode/mixed fractions, ranges, zero/missing servings, "to taste," and rounding.
 
-## 8. Offline and synchronization behavior
-
-- Enable Firestore's persistent local cache with multi-tab support when the
-  browser permits it.
-- Use realtime listeners only for the current household's active shopping items
-  and currently visible recipe data; avoid listeners over unbounded data.
-- Recipe search can maintain a compact client-side index after loading recipe
-  summaries. No Algolia/Typesense service is needed.
-- Precache the application shell. Runtime-cache recipe image URLs conservatively
-  and tolerate third-party images disappearing.
-- Show clear offline, syncing, and failed-write states.
-- Rely on Firestore's local mutation queue. Do not layer another queue on top.
-- Resolve shopping conflicts per item with Firestore's normal last-write
-  behavior. Simultaneous edits to the same item are rare and do not justify a
-  merge UI.
-- iOS has no dependable background sync. Reconnect and flush while the app is in
-  the foreground.
+**Offline and sync.** Firestore's persistent local cache with multi-tab support;
+realtime listeners only for the active household's shopping items and visible
+recipe data. Precache the app shell; runtime-cache recipe images conservatively
+and tolerate third-party images disappearing. Show clear offline, syncing, and
+failed-write states. Rely on Firestore's mutation queue — do not layer another
+queue on top. Per-item last-write behavior is sufficient; simultaneous edits to
+one item are rare and do not justify a merge UI. iOS has no dependable background
+sync, so reconnect and flush in the foreground.
 
 ## 9. Cost plan
 
-The expected operating cost is **$0/month at household usage**, but “free” has
-two qualifications.
+Expected operating cost is **$0/month at household usage**, with two
+qualifications.
 
-### Netlify
+**Netlify.** The Free plan has a hard 300-credit monthly limit consumed by
+production deploys, bandwidth, requests, and function compute — notably 15
+credits per production deploy, so frequent deploys drain the allowance faster
+than app traffic does. The plan pauses the site at the limit rather than billing.
+Keep auto-recharge off, batch meaningful changes, and monitor credits during
+development and after the Plan to Eat import. The account may hold legacy pricing
+(accounts created before 2025-09-04); confirm on the team billing page.
 
-Netlify's current Free plan is $0 with a hard 300-credit monthly limit. Credits
-are consumed by production deploys, bandwidth, requests, and function compute.
-The published current rates include 15 credits per production deploy, 20 credits
-per GB of bandwidth, 2 credits per 10,000 web requests, and 10 credits per
-GB-hour of compute. A tiny two-user PWA should fit, but many production deploys
-can consume the allowance faster than app traffic. The Free plan pauses sites at
-the limit rather than creating a surprise bill. The account may be on a legacy
-plan because Netlify accounts created before 2025-09-04 can retain legacy
-pricing; confirm the actual team billing page before implementation.
+**Firebase.** Auth and Firestore household usage sit far inside the free quota
+(1 GiB stored, 50k reads, 20k writes, 20k deletes per day, 10 GiB egress/month).
+Cloud Storage now requires the Blaze plan and a linked billing account even
+within no-cost quotas — hence source image URLs instead of uploads, and Spark
+with no billing account. If uploads ever become important, enable Blaze
+deliberately, pick an eligible no-cost bucket region, resize in the browser, and
+set budget alerts, remembering that budgets alert but do not cap charges.
 
-Cost controls:
+The `4dl.ca` domain is the only already-paid external cost. No LLM, paid scraping
+service, Apple account, or server is required.
 
-- Keep Netlify auto-recharge off.
-- Batch meaningful changes rather than pushing throwaway production commits.
-- Monitor credits during development and after the Plan to Eat import.
-- Keep the import function response small and cache static assets normally.
+References: <https://www.netlify.com/pricing/>,
+<https://firebase.google.com/docs/firestore/quotas>,
+<https://firebase.google.com/pricing>
 
-Reference: <https://www.netlify.com/pricing/>
+## 10. Verification strategy
 
-### Firebase
+Every implementation change runs typecheck, ESLint, unit tests, and a production
+build, plus Firestore rule tests when data access changes and Playwright smoke
+tests for critical flows. CI runs these on pushes to `main`; keep it small enough
+not to waste Netlify deploy credits.
 
-- Firebase Authentication Google sign-in usage for this small set of households
-  is comfortably within the no-cost tier.
-- Firestore's free quota is currently 1 GiB stored, 50,000 document reads/day,
-  20,000 writes/day, 20,000 deletes/day, and 10 GiB outbound/month. Household
-  usage should be orders of magnitude below those numbers.
-- Cloud Storage for Firebase now requires the pay-as-you-go Blaze plan and a
-  linked billing account, even when storage usage remains inside no-cost quotas.
-  New buckets can still receive up to 5 GB-months storage and other no-cost
-  allowances in eligible regions, but it is not a strict no-card service.
-
-Therefore the MVP deliberately uses source image URLs and can run on Firebase's
-Spark plan with no billing account. If uploaded images become important, enable
-Blaze deliberately, choose an eligible no-cost bucket region, resize images in
-the browser, set Google Cloud budget alerts, and document that budgets alert but
-do not automatically cap charges.
-
-References:
-
-- <https://firebase.google.com/docs/firestore/quotas>
-- <https://firebase.google.com/docs/auth>
-- <https://firebase.google.com/docs/storage/faqs-storage-changes-announced-sept-2024>
-- <https://firebase.google.com/pricing>
-
-The existing `4dl.ca` domain is the only already-paid external cost. No LLM,
-paid scraping service, Apple account, or new server is required for MVP.
-
-## 10. Implementation milestones
-
-Each milestone should leave `main` working, tested, and deployed. Complete its
-atomic commits, push them, and continue autonomously to the next milestone. Do
-not build later milestones speculatively inside an earlier one, but do not stop
-after an exit criterion is met.
-
-Implementation status as of `d17202f`: the coded work for Milestones 0–6 is
-complete. Automated and browser verification is complete. The remaining exit
-criteria are the production secret/rules publication and owner/private-device
-acceptance items listed in Section 1; do not rebuild completed milestones.
-
-### Milestone 0 — Foundation and highest-risk spike
-
-- Scaffold Vite + React + TypeScript.
-- Add routing, minimal CSS tokens, error boundary, lint, formatting, and tests.
-- Add Netlify build configuration and SPA redirect.
-- Add PWA manifest/icons/service-worker shell and an installation help screen.
-- Create a temporary `/import?url=` screen and “Save to Forkast” Shortcut
-  instructions.
-- Validate opening the import link from the Share Sheet on the wife's iPhone.
-- Deploy a visible shell to `forkast.4dl.ca` and verify HTTPS/mobile install.
-
-Exit criteria: the production URL serves Forkast, it can be installed, and the
-iPhone handoff from Share Sheet to the correct import URL is acceptable.
-
-### Milestone 1 — Firebase, household, and security
-
-- Create separate Firebase production and local-emulator configuration.
-- Email/password Auth was initially enabled for bootstrap and Firestore; do not
-  enable Storage. This historical implementation is disposable and must be
-  removed for the Google-only launch cutover in Section 13.
-- Password sign-up/sign-in/reset and Google sign-in were implemented during
-  bootstrap. Retain Google sign-in, sign-out, and persistence; remove every
-  password path for launch.
-- Add first-household creation, seed City Market and Costco, and implement the
-  one-time spouse invite flow.
-- Implement Firestore converters/schemas and security rules.
-- Add emulator-backed rules and integration tests.
-- Configure public Firebase client variables in Netlify and server credentials
-  only for functions; never commit private keys.
-- Add `forkast.4dl.ca`, the Netlify fallback hostname, and localhost/emulator
-  origins to Firebase Auth's authorized-domain configuration as appropriate.
-
-Exit criteria: two real accounts can share one household, another account cannot
-read it, and all rules tests pass.
-
-### Milestone 2 — Recipe library and Plan to Eat import
-
-- Build recipe list, search, favorite toggle, details, manual create/edit/delete.
-- Implement the ingredient adapter and retain raw lines.
-- Implement Plan to Eat CSV selection, mapping, preview, duplicate decisions,
-  batched writes, progress, and completion/error report.
-- Test with a small synthetic fixture first, then a copy of the real export.
-- Do not commit the household's export or recipe data.
-
-Exit criteria: the existing library imports without silent loss, recipes are
-searchable/editable, and repeated import does not create accidental duplicates.
-
-### Milestone 3 — Website import
-
-- Implement the authenticated Netlify function with SSRF protections.
-- Parse common JSON-LD shapes: a single Recipe, `@graph`, arrays, and nested
-  recipe nodes.
-- Normalize durations, servings, ingredient lines, instruction strings and
-  HowToStep/HowToSection structures, image variants, and canonical source URL.
-- Build loading, editable review, save, failure, and manual-paste states.
-- Test against a curated fixture corpus; do not make live third-party websites
-  a required CI dependency.
-- Validate a representative set of sites the household actually uses.
-
-Exit criteria: the wife can Share a normal recipe page, review the clean recipe,
-and save it in a few taps. Failures are recoverable without losing the URL.
-
-### Milestone 4 — Serving scaling
-
-- Add base servings to editor and recipe view.
-- Implement pure scaling and fraction-formatting utilities with unit tests.
-- Clearly distinguish saved base quantities from the temporary display size.
-- Add scaled or selected ingredients to shopping.
-
-Exit criteria: common household recipes scale correctly and ambiguous text is
-left intact rather than guessed.
-
-### Milestone 5 — City Market and Costco lists
-
-- Build store tabs/sections, manual add, edit, move, check, uncheck, and clear
-  checked.
-- Add remembered exact-name store rules and the “remember this choice” control.
-- Add recipe ingredients at the current serving scale.
-- Combine only safe exact-name and compatible-unit matches.
-- Enable Firestore persistence and display offline/syncing feedback.
-- Test simultaneous changes from two browser contexts and an offline/reconnect
-  cycle.
-
-Exit criteria: both household members can update both lists without losing
-different-item changes, including during a realistic grocery-store offline test.
-
-### Milestone 6 — Export, hardening, and household launch
-
-- Export all Forkast data as a timestamped JSON file.
-- Export recipes as schema.org Recipe JSON-LD plus an image/source manifest.
-- Add keyboard/focus checks, screen-reader labels, touch-target review, empty
-  states, and reduced-motion behavior.
-- Add production headers, CSP compatible with Firebase and source images, and
-  dependency/security checks.
-- Verify mobile performance and avoid loading editor/import code on first paint.
-- Document Firebase/Netlify setup, local development, restore procedure, and the
-  Shortcut installation.
-- Run the household acceptance script below and fix blockers before declaring
-  Plan to Eat replaced.
-
-Exit criteria: export is restorable, all automated checks pass, and both users
-complete the core loop on their phones.
-
-## 11. Verification strategy
-
-### Automated checks on every implementation change
-
-- TypeScript typecheck
-- ESLint
-- Unit tests
-- Production build
-- Firestore rule tests when data access changes
-- Playwright smoke tests for the critical browser flows
-
-CI should run these on pushes to `main`. Keep CI small enough not to waste
-Netlify production deploy credits; GitHub Actions can verify before or alongside
-the Netlify build.
-
-### Required test fixtures
+Required fixture coverage:
 
 - JSON-LD: single object, `@graph`, array, HowToStep, HowToSection, missing
   servings, multiple image representations, malformed JSON, and no Recipe
 - Ingredients: integer, decimal, common fraction, Unicode fraction, mixed
-  fraction, range, missing unit, “to taste,” and non-scalable text
-- Plan to Eat: normal export, alternate capitalization, embedded newlines/quotes,
-  blank fields, duplicate URLs/titles, unknown columns, and invalid rows
-- Security: unauthenticated, valid member, non-member, cross-household, invalid
-  store, unexpected fields, and attempted role escalation
+  fraction, range, missing unit, "to taste," non-scalable text
+- Plan to Eat: normal export, alternate capitalization, embedded
+  newlines/quotes, blank fields, duplicate URLs/titles, unknown columns,
+  invalid rows
+- Security: unauthenticated, member, non-member, cross-household, invalid store,
+  unexpected fields, attempted role escalation
 
-### Household acceptance script
+Household acceptance script, on the two actual iPhones:
 
-On the two actual iPhones:
-
-1. Install Forkast and sign in with Google once; confirm the persistent session
-   survives closing and reopening the installed PWA.
-2. Share three real recipe websites through the Shortcut; include one expected
-   failure and confirm manual recovery is tolerable.
+1. Install Forkast, sign in with Google, confirm the session survives closing and
+   reopening the installed PWA.
+2. Share three real recipe websites through the Shortcut, including one expected
+   failure, and confirm manual recovery is tolerable.
 3. Star a recipe and find it by search.
-4. Change a 4-serving recipe to 6 and visually verify its quantities.
+4. Change a 4-serving recipe to 6 and check the quantities.
 5. Add selected scaled ingredients to both stores.
-6. Change an ingredient from City Market to Costco and remember the preference.
-7. Put one phone offline; check/add items on both phones; reconnect and confirm
-   the combined result.
-8. Export all data and inspect the downloaded files.
+6. Move an ingredient from City Market to Costco and remember the preference.
+7. Put one phone offline, change items on both, reconnect, confirm the result.
+8. Export all data and inspect the files.
 9. Cook and shop from Forkast for one real week before cancelling Plan to Eat.
 
-## 12. Risks and mitigations
+## 11. Risks and mitigations
 
 | Risk | Mitigation |
 | --- | --- |
-| iOS capture is clumsy | Spike the actual Shortcut handoff first; keep Paste URL permanently available. |
-| A site blocks fetching or lacks JSON-LD | Honest error, preserve URL, editable manual paste; no bot bypass. |
-| Imported ingredients parse incorrectly | Preserve `rawText`, show review, and allow correction/non-scalable marking. |
-| Firestore rules leak household data | Emulator rule tests are a release blocker and membership mutation stays server-side. |
-| Import function can access internal hosts | Implement redirect-aware DNS/IP SSRF validation, timeouts, and size limits. |
-| Two users overwrite list state | One document per shopping item; do not store a whole list as one array/document. |
-| Offline data disappears on iOS | Firestore remains source of truth; local state is a cache; sync on foreground. |
-| Third-party image URLs break | Graceful placeholder; consider Firebase Storage only after this becomes a real problem. |
-| Free tiers change or are exhausted | Keep exports portable, monitor dashboards, keep Netlify recharge off, and avoid Storage/Blaze in MVP. |
+| A site blocks fetching or lacks JSON-LD | Honest error, preserve the URL, editable manual entry, no bot bypass. See Section 5. |
+| Imported ingredients parse incorrectly | Preserve `rawText`, show review, allow correction and non-scalable marking. |
+| Firestore rules leak household data | Emulator rule tests are a release blocker; membership mutation stays server-side. |
+| Import function reaches internal hosts | Redirect-aware DNS/IP validation, timeouts, size limits. |
+| Two users overwrite list state | One document per shopping item. |
+| Offline data disappears on iOS | Firestore is the source of truth; local state is a cache; sync on foreground. |
+| Third-party image URLs break | Graceful placeholder; consider Storage only if it becomes a real problem. |
+| Free tiers change or are exhausted | Portable exports, monitor dashboards, recharge off, avoid Blaze in MVP. |
 | Plan to Eat export shape differs | Inspect the real CSV privately, preview mappings, preserve unknown fields, never commit the data. |
-| Google sign-in blocks launch | Keep the provider/origin/proxy configuration explicit, test popup and iPhone redirect in ordinary browsers, surface safe error codes, and do not retain a password fallback. |
-| Friends can see another household | Keep membership-based Firestore rules authoritative and verify a separate Google-created household cannot read the initial household. |
-| Project expands before it is useful | Enforce the YAGNI boundary and milestone exit criteria; schedule deferred work only from observed use. |
+| A delivery-layer change silently breaks auth | Keep the Section 1 invariants; verify in a browser with the app installed. |
+| Friends can see another household | Membership-based rules stay authoritative; verify with a separate Google account. |
+| Project expands before it is useful | Enforce the YAGNI boundary; schedule deferred work only from observed use. |
 
-## 13. Google-only launch cutover
+## 12. Definition of MVP complete
 
-The owner has replaced the earlier optional Stage 2 enhancement with a launch
-requirement: Google is Forkast's only sign-in method. Forkast must not collect or
-store passwords. The initial household is the owner and Marla, while friends may
-sign in with Google and create their own isolated households.
+Software and automated criteria are met, production credentials and rules are
+live, and Google sign-in works. The items below are not claimed complete; see the
+continuation checklist for order.
 
-There are no production users or production data to migrate. Earlier instructions
-to preserve and link the temporary password account are superseded. That account,
-its household, invitations, and records are disposable acceptance fixtures. The
-launch implementation must delete migration complexity rather than carry it as a
-permanent recovery path.
-
-### Status at this update
-
-Steps 1 through 4 are done, deployed, and confirmed working: the migration code
-is gone, one **Continue with Google** action remains, and the owner completed a
-real Google sign-in in production on 2026-08-02. Both faults that blocked that
-sign-in were in Forkast's own delivery layer, not in Firebase configuration —
-the CSP refusing the gapi bootstrap, then the service worker answering the auth
-handler — and both are fixed.
-
-Steps 5 through 8 remain. Disabling Email/Password in step 5 is now unblocked,
-because a Google account has successfully signed in; do it before deleting the
-disposable password account, and confirm the owner's Google session still works
-afterwards. The sub-checks inside steps 6 through 8 — household creation with
-City Market and Costco seeded, sign-out and sign-back-in persistence, Marla's
-invite redemption, and the isolation test — have not been separately confirmed
-and are still owner work.
-
-### Cutover sequence
-
-1. Preserve completed non-auth product work. Privately resolve the exact
-   disposable Auth UID and Firestore household/profile paths before cleanup; do
-   not commit or print account identifiers or household data.
-2. Remove the email/password form and Firebase password calls, **Link Google
-   account** action, redirect-link state, UID/email migration validation,
-   migration-only error messages, settings copy, and their tests. Do not leave a
-   hidden fallback or dead account-linking path.
-3. Present one clear **Continue with Google** action to signed-out users. Use a
-   popup on desktop and full-page redirect on iPhone Safari/installed PWA unless
-   ordinary-browser evidence demonstrates a more reliable accessible choice.
-4. Deploy and verify ordinary Google sign-in. Diagnose the existing
-   `auth/internal-error` on this clean sign-in path rather than preserving linking
-   code to work around it. Confirm cancellation, blocked-popup, network, redirect,
-   and provider errors have direct recovery copy.
-5. Disable Firebase Email/Password after the Google-only build is live. Delete
-   the disposable password Auth user and recursively delete only its test
-   profile/household tree. Never use broad or unresolved destructive targets.
-6. Sign in with the owner's Google account, create the new household, and confirm
-   City Market and Costco are seeded. Sign out and sign back in with Google to
-   verify persistent access.
-7. Have Marla sign in as a new Google user and redeem a fresh one-time invite.
-   Confirm both members share the same household.
-8. Verify a third Google user with no invite can create a separate household and
-   cannot read either initial-household member's data. Remove any synthetic test
-   household/account created solely for this check.
-
-### Implementation requirements
-
-- Use the Firebase Web SDK's `GoogleAuthProvider` and redirect-result handling.
-  Request only the basic identity scopes Firebase needs; no Google API scopes are
-  required.
-- Do not ship password sign-in, sign-up, reset-password, credential-linking,
-  account-copy, UID-preservation, or household-migration code.
-- Handle cancelled, blocked, expired, network, popup, redirect, and provider-
-  collision failures with direct recovery copy.
-- A new Google user without a `users/{uid}` document reaches onboarding and may
-  either create an isolated household or redeem a valid invite.
-- Keep Firestore membership enforcement unchanged: authentication proves
-  identity; household documents and rules determine data access.
-- Update auth error mapping, unit tests, browser tests, CSP if required,
-  operational documentation, and production acceptance checks.
-- Use Impeccable for the material authentication UI change, but do not rerun the
-  already completed one-time detector merely because this handoff was updated.
-
-Two constraints this cutover uncovered, both now enforced in the repository:
-
-- The production CSP must allow `https://apis.google.com` in `script-src` and
-  `frame-src`. The Firebase Auth bundle loads its gapi bootstrap from there for
-  both the popup and redirect flows.
-- `/__/` must stay in `navigateFallbackDenylist`. The auth handler is same-origin
-  by design, so the service worker will otherwise serve the app shell in its
-  place and sign-in will hang with no error.
-- Response-header changes only reach installed clients when `index.html` changes,
-  because the service worker precaches the document with its headers. The build
-  stamps `COMMIT_REF` into the document to guarantee that.
-
-The cleanup touchpoints below were all completed in `1f49757`:
-
-- `src/pages/AuthPage.tsx`: remove password imports, state, submit handler, and
-  the entire **Existing owner migration** disclosure/form.
-- `src/pages/SettingsPage.tsx`: remove the Google-linking action, status, and
-  migration copy; keep unrelated invite, export, install, and sign-out controls.
-- `src/lib/googleAuth.ts`: retain ordinary Google sign-in, redirect completion,
-  safe launch-relevant errors, and desktop/iPhone flow selection; remove link
-  imports/functions, link session keys, UID/email validation, unlink rollback,
-  and migration-only messages.
-- `src/lib/auth.tsx`: keep redirect-result completion only as required by normal
-  Google redirect sign-in.
-- `src/lib/googleAuth.test.ts`: replace linking/migration tests with Google-only
-  popup, redirect, cancellation, safe-error, and redirect-completion coverage.
-- Searching `src`, `e2e`, `netlify`, `rules`, `public`, and `index.html` for
-  `linkCurrentUserWithGoogle`, `Existing owner migration`, the link storage keys,
-  `linkWithPopup`, `linkWithRedirect`, and `signInWithEmailAndPassword` now
-  returns nothing. The only remaining `password` match in shipped code is the
-  SSRF guard in `netlify/functions/import-recipe.ts`, which rejects credentials
-  embedded in an imported URL and is unrelated to sign-in.
-
-Exit criteria: email/password is disabled in Firebase and password/linking code is
-absent from Forkast; the owner creates a clean household with Google; Marla joins
-it with Google; an unrelated Google user creates a separate isolated household;
-persistent iPhone PWA sessions, sign-out/sign-in, household bootstrap, and invite
-redemption all work.
-
-### Evidence-led decision queue
-
-After at least two weeks of household use, review evidence in this order:
-
-1. If recipes are regularly planned ahead, add a simple week view with tap to
-   place. Do not start with drag-and-drop.
-2. If source images frequently disappear or personal photos are desired, enable
-   Firebase Storage on Blaze with budget alerts and client-side resize to WebP.
-3. If manual fallback is common, quantify failed source sites first, then read
-   “Publisher blocks on recipe import” below. A broader parser or an LLM does not
-   help against a publisher block, and a headless browser is ruled out.
-4. If store layouts matter in practice, add user-ordered aisle sections within
-   each store.
-5. If duplicate ingredient naming causes visible list pain, introduce aliases
-   gradually from user corrections rather than importing a global ontology.
-6. Consider pantry/freezer inventory only if the household repeatedly asks
-   “what can we make with what we have?”
-7. Nutrition, price tracking, OCR, social import, reminders, and grocery-order
-   integrations stay last because they are costly, approximate, or fragile.
-
-### Publisher blocks on recipe import
-
-Some publishers refuse server-side fetches outright. This is a product boundary,
-not a bug to engineer around, and it needs to be understood before anyone
-proposes a fix.
-
-Evidence gathered 2026-08-02 against
-`https://www.allrecipes.com/recipe/52407/chicken-shawarma/`:
-
-- The response is `HTTP 402` from Cloudflare, with a body directing readers to
-  `support@people.inc` and automated access to `contentlicensing@people.inc`.
-  Allrecipes is a People Inc. property, and the block is deliberate and
-  advertised.
-- The same 402 was returned to Forkast's importer user-agent and to an ordinary
-  desktop Chrome user-agent, both from a residential connection. The block is
-  therefore not about Netlify's IP range and not defeated by a header change.
-- Budget Bytes and Sally's Baking still import cleanly. This is site-specific
-  publisher policy, not a general import failure.
-
-**Ruled out.** Headless browsers (Playwright, Puppeteer), stealth plugins,
-residential proxies, user-agent spoofing, and challenge-solving services are all
-out of scope. They exist to defeat an access control the publisher deliberately
-set, which contradicts the import boundary already stated in `PRODUCT.md`, and
-`PRODUCT.md` is the governing document here. They are also fragile — the arms
-race resumes on every deploy — and running a browser engine inside a Netlify
-function is impractical on this cost plan regardless.
-
-**The legitimate path, if blocked sites turn out to matter.** Move the fetch to
-the user's own browser, where the user is a genuine reader with a normal session,
-instead of asking a server to impersonate one. Two shapes, both deferred until
-the failed-site count justifies them:
-
-- The iOS "Save to Forkast" Shortcut already opens the import route from Safari.
-  It can pass the page contents Safari already loaded, and Forkast parses that
-  instead of fetching the URL server-side.
-- A desktop paste-the-page fallback for the same reason.
-
-Either shape means accepting untrusted HTML from the client, so the existing
-server-side protections need equivalents: size limits, content-type and
-structure validation, sanitisation before parsing, and no trust in client-claimed
-provenance. The SSRF, DNS, and redirect guards on the server path stay as they
-are, because that path remains the default for sites that permit it.
-
-## 14. Definition of MVP complete
-
-MVP is complete only when all of the following are true:
-
-Current status: the software and automated criteria are implemented, production
-credentials/rules are live, disposable household bootstrap was proven, and the
-Google provider/proxy configuration is deployed. The transitional password and
-linking implementation must now be removed. Clean Google sign-in, password-provider
-retirement, fresh household creation, the other Google accounts, and the remaining
-household/physical acceptance criteria below are intentionally not claimed as
-complete. See Section 1 for the exact continuation order.
-
-- The owner and Marla can sign in only with Google and remain signed in on their
-  iPhones; neither account depends on a legacy password identity.
+- The owner and Marla sign in only with Google and stay signed in on their
+  iPhones, with no legacy password identity.
 - A friend can create a separate household with Google and cannot access the
   initial household.
-- The Plan to Eat recipe library has been imported with a reviewed error report.
-- Website import succeeds on the household's common recipe sites through the
-  Share Sheet Shortcut in a few taps.
-- Recipes are clean, editable, searchable, favoritable, and correctly scalable
-  for common quantities.
-- Ingredients can be assigned to City Market or Costco and the preference is
-  reused.
+- The Plan to Eat library is imported with a reviewed error report.
+- Website import succeeds on the household's common sites through the Shortcut in
+  a few taps.
+- Recipes are clean, editable, searchable, favoritable, and correctly scalable.
+- Ingredients route to City Market or Costco and the preference is reused.
 - Shopping changes synchronize between both users and survive a tested offline
   period.
-- The app is installable and usable at `https://forkast.4dl.ca`.
-- Firestore security tests and the automated verification suite pass.
+- The app is installable and usable at <https://forkast.4dl.ca>.
+- Firestore security tests and the automated suite pass.
 - A complete export has been generated and inspected.
 - The household has used Forkast for one real week without a switch-blocking
   problem.
 
-## 15. Fresh-task kickoff
-
-Use this prompt after clearing context:
+## 13. Fresh-task kickoff
 
 > Continue the Forkast project in `/Users/adil/Code/Forkast`. Read `PRODUCT.md`,
-> `PLAN.md`, `README.md`, and `/Users/adil/Code/AGENTS.md` completely before
-> acting. Treat `PRODUCT.md` and `PLAN.md` as the product and implementation
-> authorities. Begin with the **Continuation checklist** in Section 1; preserve
-> completed milestone work and do not rerun Impeccable's one-time detector.
-> Implement the clean Google-only cutover in Section 13 before the remaining
-> private/physical acceptance. There are no production users or data to migrate:
-> delete all password and credential-linking paths, disable Email/Password after
-> the Google-only build is deployed, and remove only the privately resolved
-> disposable Auth/Firestore fixtures. Work autonomously until the full MVP
-> definition of complete is satisfied; do
-> not stop for routine questions or optional owner input. Use best judgment and
-> the YAGNI boundary. Use Impeccable for any new material frontend change and
-> visually re-verify affected flows. Make coherent atomic changes, verify each,
-> commit with only my configured Git identity, and push directly to
-> `origin/main` as you go. Never create a branch or pull request, never add
-> Codex/AI/co-author attribution, and keep `main` deployable. Continue until
-> complete; if a listed credential/private-data/physical-device blocker remains,
-> finish every independent task and report the exact owner action needed.
+> `PLAN.md`, `README.md`, and `/Users/adil/Code/AGENTS.md` before acting. Treat
+> `PRODUCT.md` and `PLAN.md` as the product and implementation authorities. Start
+> from the continuation checklist in Section 1, respect the operational
+> invariants there, and preserve completed work — do not rebuild milestones and do
+> not rerun Impeccable's one-time detector. Work autonomously to the definition of
+> complete in Section 12 without stopping for routine questions. Use Impeccable
+> for any material frontend change and re-verify affected flows in a real browser.
+> Make coherent atomic changes, verify each, commit with only my configured Git
+> identity, and push directly to `origin/main`. Never create a branch or pull
+> request, never add AI or co-author attribution, and keep `main` deployable. If a
+> credential, private-data, or physical-device blocker remains, finish every
+> independent task and report the exact owner action needed.

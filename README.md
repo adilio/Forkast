@@ -29,12 +29,11 @@ npm audit --audit-level=high
 - Firebase project: `forkast-4dl`; Spark plan; Firestore region `us-west1`.
 - The Google provider, support email, authorized domains, and OAuth redirect
   URIs are configured. Google is the only sign-in method Forkast ships; no
-  password or account-linking code remains. Two owner steps are still open:
-  verify an ordinary Google sign-in, then disable the email/password provider
-  and delete the disposable password account and its test household. Disable the
-  provider only after a Google sign-in has succeeded, or the household has no way
-  in. Storage, Analytics, Gemini, and Firebase Hosting are intentionally
-  disabled.
+  password or account-linking code remains, and Google sign-in is confirmed
+  working in production. One owner step is still open: disable the
+  email/password provider, then delete the disposable password account and its
+  test household. Storage, Analytics, Gemini, and Firebase Hosting are
+  intentionally disabled.
 - Public `VITE_FIREBASE_*` values belong in Netlify. The downloaded Firebase
   service-account JSON belongs only in Netlify as the single-line
   `FIREBASE_SERVICE_ACCOUNT_JSON` environment variable. Never commit it.
