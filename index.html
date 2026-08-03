@@ -7,6 +7,27 @@
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
     <meta name="theme-color" content="#f4f3ee" />
+    <script>
+      // Resolve the theme before first paint: a saved choice wins, otherwise
+      // the device decides. Without this the app flashes a lit kitchen at
+      // someone reading a recipe in a dark one.
+      (function () {
+        var pref = 'system';
+        try {
+          pref = localStorage.getItem('forkast:theme') || 'system';
+        } catch (e) {}
+        var dark =
+          pref === 'dark' ||
+          (pref !== 'light' &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        if (dark) {
+          document
+            .querySelector('meta[name="theme-color"]')
+            .setAttribute('content', '#131714');
+        }
+      })();
+    </script>
     <meta
       name="description"
       content="Private household recipes and store-aware shopping lists."

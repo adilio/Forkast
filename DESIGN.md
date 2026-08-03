@@ -11,8 +11,14 @@ generic SaaS card dashboard. It should still read as an ordinary, dependable
 tool within seconds.
 
 The physical scene forces a light-first system: the app is most often used in a
-bright grocery aisle, beside a stove, or on an iPhone outdoors. Dark mode is not
-an MVP requirement; high contrast and low glare are.
+bright grocery aisle, beside a stove, or on an iPhone outdoors. High contrast and
+low glare come first, and the light theme is the one the system is designed in.
+
+A dark theme exists alongside it, because the other half of the scene is a phone
+held in a dim kitchen at night. It is the same pass with the lights down, not a
+second design: every token keeps its meaning, so component rules are written
+once. Appearance follows the device unless the reader chooses light or dark in
+Settings, and the choice is per device rather than per household.
 
 ## Visual world
 
@@ -32,12 +38,28 @@ an MVP requirement; high contrast and low glare are.
 
 ## Color tokens
 
+Day:
+
 - Canvas `#f4f3ee`; primary surface `#ffffff`; secondary rail `#e9ebe5`.
 - Ink `#18201c`; muted ink `#58625d`; hairline `#c9cec8`.
 - Action green `#176b4d`; action hover `#11543c`; soft selected `#dcebe3`.
 - Pending `#8a5a00` on `#fff1c7`; danger `#a3382b` on `#fbe4df`.
 - Focus uses a 3px outer ring derived from action green and never relies on a
   color change alone.
+
+Night, stamped as `:root[data-theme="dark"]`:
+
+- Canvas `#131714`; primary surface `#1c211d`; secondary rail `#0e110f`.
+- Ink `#eaeee9`; muted ink `#9aa39d`; hairline `#333b36`.
+- Action green `#4fbc91`; action hover `#6bd0a7`; soft selected `#1b3d30`.
+- Pending `#f2c96b` on `#33290f`; danger `#f0938a` on `#3a1e1a`.
+
+Under low light the food-safe green stops working as a dark fill and becomes a
+light one, so type on a filled action control is the `--on-action` token rather
+than a literal white: `#ffffff` by day, `#0b1a14` by night. The same rule covers
+the inverted undo banner through `--inverse-surface` and `--on-inverse`. Never
+write a color literal in a component rule; if a value has no token, add one to
+both themes.
 
 ## Typography
 

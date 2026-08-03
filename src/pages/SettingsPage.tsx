@@ -4,6 +4,7 @@ import { auth } from '../lib/firebase';
 import { useAuth } from '../lib/auth';
 import { callFunction } from '../lib/api';
 import { exportHousehold } from '../lib/data';
+import { ThemeToggle } from '../components/ThemeToggle';
 function download(name: string, data: unknown, type = 'application/json') {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type });
   const a = document.createElement('a');
@@ -89,6 +90,14 @@ export default function SettingsPage() {
         <h1>Settings</h1>
         <p>Signed in as {user?.email}</p>
       </header>
+      <section>
+        <h2>Appearance</h2>
+        <p>
+          Forkast follows your device by default. Choose light or dark to hold one, on
+          this device only.
+        </p>
+        <ThemeToggle />
+      </section>
       <section>
         <h2>Invite your spouse</h2>
         <p>Create a private link that works once and expires after 24 hours.</p>

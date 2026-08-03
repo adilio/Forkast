@@ -5,8 +5,9 @@
     BlinkMacSystemFont,
     'Segoe UI',
     sans-serif;
-  color: #18201c;
-  background: #f4f3ee;
+  color: var(--ink);
+  background: var(--canvas);
+  color-scheme: light;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   --canvas: #f4f3ee;
@@ -24,6 +25,84 @@
   --danger-soft: #fbe4df;
   --focus: #176b4d;
   --shadow: 0 8px 28px rgba(24, 32, 28, 0.08);
+
+  /* Text that sits on a filled --action or --action-hover control. It is a
+     token rather than a literal white because the night pass lightens the
+     green until only dark type reads on it. */
+  --on-action: #fff;
+
+  /* Fields carry a heavier rule than content hairlines: an input's edge is
+     the affordance, so it stays visible where a divider may recede. */
+  --field-line: #89928d;
+  --placeholder: #6f7873;
+  --disabled-ink: #7a837e;
+  --disabled-surface: #dde0dc;
+  --pending-line: #d8ba72;
+  --skeleton-base: #e8e9e5;
+  --skeleton-sheen: #f7f7f4;
+
+  /* The rails wash over the surface beneath them rather than painting a flat
+     block, so both stay legible when content scrolls under. */
+  --rail-hover: rgba(255, 255, 255, 0.55);
+  --rail-scrim: rgba(255, 255, 255, 0.96);
+
+  /* The one inverted surface in the system: the undo banner, which has to
+     read as a temporary object laid over the work rather than part of it. */
+  --inverse-surface: #18201c;
+  --on-inverse: #fff;
+}
+
+/* ===== The pass after service ============================================
+
+   The same kitchen with the lights down, not a second design. Every token
+   keeps its meaning — --ink is still "the colour type is", --surface is
+   still "the colour a ticket is" — so every component rule below is written
+   once and holds in both themes.
+
+   The resolved theme is always stamped on <html>, by the boot script in
+   index.html before first paint and by src/lib/theme.ts afterwards, so this
+   attribute is the single source of truth for a saved choice and the device
+   setting alike.
+   ======================================================================== */
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --canvas: #131714;
+  --surface: #1c211d;
+  --rail: #0e110f;
+  --ink: #eaeee9;
+  --muted: #9aa39d;
+  --line: #333b36;
+
+  /* Under low light the food-safe green stops working as a dark fill and
+     becomes a light one. --on-action flips with it, so the same button
+     markup keeps its contrast in both rooms. */
+  --action: #4fbc91;
+  --action-hover: #6bd0a7;
+  --on-action: #0b1a14;
+  --selected: #1b3d30;
+
+  --pending: #f2c96b;
+  --pending-soft: #33290f;
+  --pending-line: #5c4a1c;
+  --danger: #f0938a;
+  --danger-soft: #3a1e1a;
+  --focus: #6bd0a7;
+  --shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+
+  --field-line: #4a534d;
+  --placeholder: #838d87;
+  --disabled-ink: #767f79;
+  --disabled-surface: #262b27;
+  --skeleton-base: #1a1f1b;
+  --skeleton-sheen: #242a26;
+
+  --rail-hover: rgba(255, 255, 255, 0.07);
+  --rail-scrim: rgba(19, 23, 20, 0.96);
+
+  --inverse-surface: #eaeee9;
+  --on-inverse: #131714;
 }
 
 * {
@@ -58,6 +137,73 @@ svg {
   stroke-linejoin: round;
 }
 :focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+/* Named for a screen reader, absent from the page. Used where an icon is the
+   whole visible control and the name would otherwise be a tooltip only. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Held for one frame while the theme tokens are swapped. See lib/theme.ts. */
+:root[data-theme-switching] *,
+:root[data-theme-switching] *::before,
+:root[data-theme-switching] *::after {
+  transition: none !important;
+}
+
+/* ===== Appearance control ================================================
+   A sunk track holding one raised segment. The inputs are real radios, so
+   arrow keys, grouping, and checked state come from the browser; the labels
+   carry the visible state and therefore also the focus ring. */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: max-content;
+  margin: 0;
+  padding: 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--rail);
+}
+.theme-option {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background-color 180ms ease-out,
+    color 180ms ease-out,
+    border-color 180ms ease-out;
+}
+.theme-option:hover {
+  color: var(--ink);
+}
+.theme-option[data-checked='true'] {
+  color: var(--action-hover);
+  background: var(--surface);
+  border-color: var(--line);
+}
+.theme-option input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+}
+.theme-option:has(input:focus-visible) {
   outline: 3px solid var(--focus);
   outline-offset: 3px;
 }
@@ -114,7 +260,7 @@ svg {
 }
 .work-rail nav a:hover {
   color: var(--ink);
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--rail-hover);
 }
 .sync-note {
   margin-top: auto;
@@ -231,7 +377,7 @@ h2 {
   width: 2rem;
   height: 2rem;
   border-radius: 50%;
-  color: #fff;
+  color: var(--on-action);
   background: var(--action);
   font-weight: 800;
 }
@@ -266,11 +412,11 @@ input {
   padding: 0.75rem 0.9rem;
   color: var(--ink);
   background: var(--surface);
-  border: 1px solid #89928d;
+  border: 1px solid var(--field-line);
   border-radius: 7px;
 }
 input::placeholder {
-  color: #6f7873;
+  color: var(--placeholder);
 }
 input:hover {
   border-color: var(--ink);
@@ -297,15 +443,15 @@ input:hover {
     border-color 180ms ease-out;
 }
 .button--primary {
-  color: #fff;
+  color: var(--on-action);
   background: var(--action);
 }
 .button--primary:hover {
   background: var(--action-hover);
 }
 .button--primary:disabled {
-  color: #7a837e;
-  background: #dde0dc;
+  color: var(--disabled-ink);
+  background: var(--disabled-surface);
   cursor: not-allowed;
 }
 .button--outline {
@@ -357,7 +503,7 @@ input:hover {
   margin-top: 1.5rem;
   padding: 1.25rem;
   background: var(--pending-soft);
-  border: 1px solid #d8ba72;
+  border: 1px solid var(--pending-line);
   border-radius: 8px;
 }
 .fatal-error {
@@ -376,7 +522,12 @@ input:hover {
 }
 .page-skeleton {
   height: 22rem;
-  background: linear-gradient(100deg, #e8e9e5 30%, #f7f7f4 50%, #e8e9e5 70%);
+  background: linear-gradient(
+    100deg,
+    var(--skeleton-base) 30%,
+    var(--skeleton-sheen) 50%,
+    var(--skeleton-base) 70%
+  );
   background-size: 300% 100%;
   animation: skeleton 1.4s ease infinite;
   border-radius: 8px;
@@ -665,7 +816,7 @@ select {
   font: inherit;
   color: var(--ink);
   background: var(--surface);
-  border: 1px solid #89928d;
+  border: 1px solid var(--field-line);
   border-radius: 7px;
 }
 textarea {
@@ -822,7 +973,7 @@ select {
   width: 2rem;
   height: 2rem;
   border-radius: 50%;
-  color: #fff;
+  color: var(--on-action);
   background: var(--action);
   font-weight: 800;
 }
@@ -870,7 +1021,7 @@ select {
   border-left: 1px solid var(--ink);
 }
 .store-tabs button[aria-pressed='true'] {
-  color: #fff;
+  color: var(--on-action);
   background: var(--action-hover);
 }
 .store-tabs span,
@@ -953,15 +1104,15 @@ select {
   align-items: center;
   gap: 1.5rem;
   padding: 0.7rem 1rem;
-  color: #fff;
-  background: var(--ink);
+  color: var(--on-inverse);
+  background: var(--inverse-surface);
   border-radius: 8px;
   box-shadow: var(--shadow);
 }
 .undo-banner .text-button {
   min-height: 2.75rem;
   padding: 0.5rem;
-  color: #fff;
+  color: var(--on-inverse);
 }
 .file-drop {
   display: grid;
@@ -1060,7 +1211,7 @@ select {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     padding: 0.35rem 0.35rem calc(0.35rem + env(safe-area-inset-bottom));
-    background: rgba(255, 255, 255, 0.96);
+    background: var(--rail-scrim);
     border-top: 1px solid var(--line);
   }
   .bottom-rail a {
@@ -1180,9 +1331,12 @@ select {
   }
   .page-skeleton {
     animation: none;
-    background: #e8e9e5;
+    background: var(--skeleton-base);
   }
   .button {
+    transition: none;
+  }
+  .theme-option {
     transition: none;
   }
 }
