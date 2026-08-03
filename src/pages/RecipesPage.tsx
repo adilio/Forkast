@@ -18,12 +18,9 @@ import {
   saveRecipe,
   setStarred,
 } from '../lib/data';
-import {
-  formatQuantity,
-  normalizedIngredientName,
-  scaleIngredient,
-} from '../lib/ingredients';
-import { fallbackStore, routeIngredient, type StoreRouting } from '../lib/storeRouting';
+import { formatQuantity, scaleIngredient } from '../lib/ingredients';
+import { fallbackStore, type StoreRouting } from '../lib/storeRouting';
+import { sendIngredientsToList } from '../lib/transfer';
 import type { Recipe } from '../lib/types';
 import type { Store } from '../lib/types';
 
@@ -413,37 +410,27 @@ function RecipeDetail({
                 setTransferReceipt([]);
                 setRouteError('');
                 try {
-                  const routed = new Map<string, number>();
-                  for (const item of recipe.ingredients.filter((x) =>
-                    selectedIngredients.has(x.id),
-                  )) {
-                    const scaled = scaleIngredient(item, factor);
-                    const normalizedName = normalizedIngredientName(scaled.name);
-                    const destination =
-                      storeId === 'remembered'
-                        ? routeIngredient(normalizedName, routing)?.storeId
-                        : storeId;
-                    if (!destination) continue;
-                    await addIngredientToShopping(householdId, {
-                      name: scaled.name,
-                      normalizedName,
-                      quantity: scaled.quantity,
-                      quantityMax: scaled.quantityMax,
-                      unit: scaled.unit,
-                      note: scaled.note,
-                      storeId: destination,
-                      checked: false,
-                      manual: false,
-                      sourceRecipeId: recipe.id,
-                      sourceIngredientId: item.id,
-                    });
-                    await rememberStore(householdId, scaled.name, destination);
-                    routed.set(destination, (routed.get(destination) || 0) + 1);
-                    setRules((current) => ({
-                      ...current,
-                      mine: new Map(current.mine).set(normalizedName, destination),
-                    }));
-                  }
+                  const { routed, learned } = await sendIngredientsToList(
+                    {
+                      recipe,
+                      factor,
+                      include: selectedIngredients,
+                      target: storeId,
+                      routing,
+                    },
+                    {
+                      addIngredient: (item) =>
+                        addIngredientToShopping(householdId, item),
+                      rememberStore: (name, destination) =>
+                        rememberStore(householdId, name, destination),
+                    },
+                  );
+                  setRules((current) => {
+                    const mine = new Map(current.mine);
+                    for (const rule of learned)
+                      mine.set(rule.normalizedName, rule.storeId);
+                    return { ...current, mine };
+                  });
                   setTransferReceipt(
                     [...routed].map(([destination, count]) => ({
                       storeName:
