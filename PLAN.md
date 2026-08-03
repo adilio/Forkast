@@ -9,22 +9,10 @@ fresh task needs in order to act correctly.
 
 ## 1. Next up
 
-**1. Cache previewed recipes so they do not load again every time.** Opening a
-catalog recipe reads it from the publisher. Today that read is remembered only
-for the life of one screen (`createDraftCache` in `src/lib/catalogImport.ts`), so
-leaving the catalog and coming back re-reads the page, and the weekly picks and
-the catalog page each keep their own copy. Persist it per device instead —
-IndexedDB or `localStorage`, keyed by the recipe URL — so a preview is instant
-the second time and the importer's ten-a-minute allowance is spent once.
-
-Decide these while building; they are not questions for the owner:
-
-- Expire entries after a couple of weeks and cap how many are kept, so a
-  corrected recipe is not frozen forever and storage cannot grow without bound.
-- Serve the cached copy immediately; a stale preview beats a spinner.
-- This is a per-device reading cache, like the browser's own. It never goes into
-  the repository and never into Firestore — see the catalog boundary in
-  Section 9.
+**1. Open-ended stores.** Stores are seeded once by `bootstrap-household.ts` and
+write-locked in the rules, so a household is stuck with the two it was given.
+Any household must be able to define, rename, reorder, and remove its own.
+Section 9 holds the invariants.
 
 **2. The meal plan calendar** — designed in Section 9, not started.
 
@@ -339,7 +327,13 @@ reach at 320px. Three picks appear on the recipe book each week.
   `node --experimental-strip-types scripts/verify-catalog.ts` re-runs that check;
   it is out of `npm run check` because it hits forty-five third-party servers.
 - **Previewing then adding is one read**, via `createDraftCache`; the pacer skips
-  entries already in hand. Section 1 is about making that cache survive a reload.
+  entries already in hand. `src/lib/draftCache.ts` persists that per device in
+  `localStorage`, so the read survives leaving the screen and the week's picks
+  and the catalog page share one copy: fourteen days, sixty entries, least
+  recently read dropped first. It is a reading cache like the browser's own —
+  never Firestore, never the repository — so every operation swallows its own
+  failure. A preview must never fail because eviction did, and a stored draft is
+  shape-checked before use rather than trusted.
 - **Duplicates are checked twice** — the catalog link, and the canonical URL the
   publisher declares, which is what actually gets saved.
 - **Rows settle as each recipe lands**, not when the batch ends, and a batch

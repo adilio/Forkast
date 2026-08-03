@@ -1,4 +1,5 @@
 import type { CatalogEntry } from '../data/catalog';
+import type { DraftPersistence } from './draftCache';
 import { draftToRecipe, recipeDuplicateKey, type ImportedDraft } from './recipes';
 import type { Recipe } from './types';
 
@@ -76,22 +77,38 @@ async function addOne(
 }
 
 /**
- * Remembers the drafts already read from publishers this session.
+ * Remembers the drafts already read from publishers.
  *
  * Previewing a recipe and then adding it is one read, not two: both go through
  * the same importer, which allows ten reads a minute per person, and reading
  * the same page twice would spend that allowance on nothing. Failures are not
  * cached — a publisher that timed out may answer on the next try.
+ *
+ * Given `persistence`, the memory map is only the hot layer and the cache
+ * survives leaving the screen. Both readers of a stored draft — `peek` and
+ * `get` — promote it into memory, so a recipe read on the week's picks is
+ * already in hand on the catalog page.
  */
-export function createDraftCache(read: (url: string) => Promise<ImportedDraft>) {
+export function createDraftCache(
+  read: (url: string) => Promise<ImportedDraft>,
+  persistence?: DraftPersistence | null,
+) {
   const drafts = new Map<string, ImportedDraft>();
+  const recall = (url: string) => {
+    const cached = drafts.get(url);
+    if (cached) return cached;
+    const stored = persistence?.get(url);
+    if (stored) drafts.set(url, stored);
+    return stored;
+  };
   return {
-    peek: (url: string) => drafts.get(url),
+    peek: recall,
     async get(url: string) {
-      const cached = drafts.get(url);
+      const cached = recall(url);
       if (cached) return cached;
       const draft = await read(url);
       drafts.set(url, draft);
+      persistence?.set(url, draft);
       return draft;
     },
   };

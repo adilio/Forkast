@@ -8,6 +8,7 @@ import {
   type AddResult,
 } from './catalogImport';
 import { getRecipeDuplicateKeys, saveRecipe } from './data';
+import { createDraftPersistence } from './draftCache';
 import { recipeDuplicateKey, type ImportedDraft } from './recipes';
 
 /**
@@ -27,6 +28,7 @@ export function useCatalogAdder(householdId: string | null | undefined) {
       async (url) =>
         (await callFunction<{ recipe: ImportedDraft }>('import-recipe', { url }))
           .recipe,
+      createDraftPersistence(),
     ),
   ).current;
 
