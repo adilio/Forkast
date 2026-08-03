@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CatalogEntry } from '../data/catalog';
 import { callFunction } from './api';
-import { addCatalogEntries, createImportPacer, type AddResult } from './catalogImport';
+import {
+  addCatalogEntries,
+  createDraftCache,
+  createImportPacer,
+  type AddResult,
+} from './catalogImport';
 import { getRecipeDuplicateKeys, saveRecipe } from './data';
 import { recipeDuplicateKey, type ImportedDraft } from './recipes';
 
@@ -15,7 +20,15 @@ export function useCatalogAdder(householdId: string | null | undefined) {
   const [addingIds, setAddingIds] = useState<Set<string>>(() => new Set());
   const [progress, setProgress] = useState('');
   const [failures, setFailures] = useState<AddResult[]>([]);
+  const [previewing, setPreviewing] = useState<string | null>(null);
   const busy = useRef(false);
+  const drafts = useRef(
+    createDraftCache(
+      async (url) =>
+        (await callFunction<{ recipe: ImportedDraft }>('import-recipe', { url }))
+          .recipe,
+    ),
+  ).current;
 
   useEffect(() => {
     if (!householdId) return;
@@ -52,14 +65,14 @@ export function useCatalogAdder(householdId: string | null | undefined) {
       });
       const results = await addCatalogEntries(entries, {
         existingKeys: savedKeys ?? new Set(),
-        importDraft: async (url) =>
-          (await callFunction<{ recipe: ImportedDraft }>('import-recipe', { url }))
-            .recipe,
+        importDraft: drafts.get,
         saveRecipe: async (recipe) => void (await saveRecipe(householdId, recipe)),
         beforeImport: async (index) => {
           if (entries.length > 1)
             setProgress(`Adding ${index + 1} of ${entries.length}…`);
-          await pace(index);
+          // A recipe read for a preview is already in hand; only a real fetch
+          // spends the importer's allowance.
+          if (!drafts.peek(entries[index].url)) await pace(index);
           setProgress(
             entries.length > 1
               ? `Adding ${index + 1} of ${entries.length}: ${entries[index].title}`
@@ -96,10 +109,39 @@ export function useCatalogAdder(householdId: string | null | undefined) {
       setAddingIds(new Set());
       busy.current = false;
     },
-    [householdId, savedKeys],
+    [householdId, savedKeys, drafts],
   );
 
-  return { add, isSaved, addingIds, progress, failures, ready: savedKeys !== null };
+  /** Reads a recipe without saving it. `import-recipe` writes nothing. */
+  const preview = useCallback(
+    async (entry: CatalogEntry) => {
+      setPreviewing(entry.id);
+      try {
+        return { draft: await drafts.get(entry.url) };
+      } catch (error) {
+        return {
+          message:
+            error instanceof Error
+              ? error.message
+              : 'This recipe could not be read right now.',
+        };
+      } finally {
+        setPreviewing(null);
+      }
+    },
+    [drafts],
+  );
+
+  return {
+    add,
+    preview,
+    previewing,
+    isSaved,
+    addingIds,
+    progress,
+    failures,
+    ready: savedKeys !== null,
+  };
 }
 
 function summarize(added: number, skipped: number, failed: number) {

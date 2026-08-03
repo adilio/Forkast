@@ -21,6 +21,13 @@ export type CatalogEntry = {
   siteName: string;
   /** The canonical recipe URL. */
   url: string;
+  /**
+   * The publisher's own lead image, hotlinked exactly as a saved recipe's is.
+   * A bare URL, like `url` itself — nothing of the publisher's writing. It may
+   * rot; the browse list hides an image that fails rather than reserving a hole
+   * for it.
+   */
+  imageUrl: string;
   tags: string[];
   /**
    * Rough total time from the page's own structured data. Null where the
@@ -35,6 +42,8 @@ export const catalog: CatalogEntry[] = [
     title: 'One Pot Creamy Cajun Chicken Pasta',
     siteName: 'Budget Bytes',
     url: 'https://www.budgetbytes.com/one-pot-creamy-cajun-chicken-pasta/',
+    imageUrl:
+      'https://www.budgetbytes.com/wp-content/uploads/2018/10/One-Pot-Creamy-Cajun-Chicken-Pasta-pan.jpg',
     tags: ['weeknight', 'one-pot', 'pasta'],
     minutes: 30,
   },
@@ -43,6 +52,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Chicken Stir Fry',
     siteName: 'Budget Bytes',
     url: 'https://www.budgetbytes.com/chicken-stir-fry/',
+    imageUrl:
+      'https://www.budgetbytes.com/wp-content/uploads/2024/01/Chicken-Stir-Fry-Pan.jpg',
     tags: ['weeknight', 'skillet'],
     minutes: 35,
   },
@@ -51,6 +62,8 @@ export const catalog: CatalogEntry[] = [
     title: 'One Pot Lemon Pepper Chicken with Orzo',
     siteName: 'Budget Bytes',
     url: 'https://www.budgetbytes.com/lemon-pepper-chicken-with-orzo/',
+    imageUrl:
+      'https://www.budgetbytes.com/wp-content/uploads/2022/07/One-Pot-Lemon-Pepper-Chicken-and-Orzo-H.jpg',
     tags: ['weeknight', 'one-pot'],
     minutes: 45,
   },
@@ -59,6 +72,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Homemade Mac and Cheese',
     siteName: 'Budget Bytes',
     url: 'https://www.budgetbytes.com/extra-cheesy-homemade-mac-and-cheese/',
+    imageUrl:
+      'https://www.budgetbytes.com/wp-content/uploads/2024/12/Homemade-Mac-and-Cheese-Overhead-Macro.jpg',
     tags: ['weeknight', 'vegetarian', 'pasta'],
     minutes: 25,
   },
@@ -67,6 +82,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Coconut Chicken Curry',
     siteName: 'RecipeTin Eats',
     url: 'https://www.recipetineats.com/coconut-chicken-curry-quick-easy/',
+    imageUrl:
+      'https://www.recipetineats.com/tachyon/2026/04/Coconut-chicken-curry-quick-easy_7.jpg',
     tags: ['weeknight', 'curry'],
     minutes: 35,
   },
@@ -75,6 +92,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Taiwanese Three Cup Chicken',
     siteName: 'RecipeTin Eats',
     url: 'https://www.recipetineats.com/taiwanese-three-cup-chicken/',
+    imageUrl:
+      'https://www.recipetineats.com/tachyon/2026/07/Taiwanese-Three-Cup-Chicken-9a.jpg',
     tags: ['weeknight', 'skillet'],
     minutes: 18,
   },
@@ -83,6 +102,8 @@ export const catalog: CatalogEntry[] = [
     title: "JB's Chicken au Poivre",
     siteName: 'RecipeTin Eats',
     url: 'https://www.recipetineats.com/french-chicken-au-poivre-sauce/',
+    imageUrl:
+      'https://www.recipetineats.com/tachyon/2026/02/Chicken-Au-Poivre_4-copy.jpg',
     tags: ['weeknight', 'skillet'],
     minutes: 28,
   },
@@ -91,6 +112,8 @@ export const catalog: CatalogEntry[] = [
     title: 'One-Pot Ratatouille Pasta',
     siteName: 'NYT Cooking',
     url: 'https://cooking.nytimes.com/recipes/1025450-one-pot-ratatouille-pasta',
+    imageUrl:
+      'https://static01.nyt.com/images/2024/06/04/multimedia/vc-one-pot-ratatouille-pastarex-gqcp/vc-one-pot-ratatouille-pastarex-gqcp-videoSixteenByNineJumbo1600.jpg',
     tags: ['weeknight', 'vegetarian', 'one-pot', 'pasta'],
     minutes: 30,
   },
@@ -99,6 +122,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Stir-Fried Cumin Green Beans and Chicken',
     siteName: 'NYT Cooking',
     url: 'https://cooking.nytimes.com/recipes/784835537-stir-fried-cumin-green-beans-and-chicken',
+    imageUrl:
+      'https://static01.nyt.com/images/2026/07/24/multimedia/24FD-APPE-CHICKENREX-MC-Cumin-Chicken-and-Green-Bean-Stir-Fry-1/24FD-APPE-CHICKENREX-MC-Cumin-Chicken-and-Green-Bean-Stir-Fry-qkgb-videoSixteenByNineJumbo1600.jpg',
     tags: ['weeknight', 'skillet'],
     minutes: 25,
   },
@@ -107,6 +132,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Chickpeas al Limone With Burrata',
     siteName: 'NYT Cooking',
     url: 'https://cooking.nytimes.com/recipes/768413295-chickpeas-al-limone-with-burrata',
+    imageUrl:
+      'https://static01.nyt.com/images/2026/01/14/multimedia/hlm-chickpeas-al-limone-with-burrata-hwjt/hlm-chickpeas-al-limone-with-burrata-hwjt-videoSixteenByNineJumbo1600.jpg',
     tags: ['weeknight', 'vegetarian'],
     minutes: 25,
   },
@@ -115,6 +142,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Lemon Chicken With Asparagus',
     siteName: 'NYT Cooking',
     url: 'https://cooking.nytimes.com/recipes/778097361-lemon-chicken-with-asparagus',
+    imageUrl:
+      'https://static01.nyt.com/images/2026/05/06/multimedia/06FD-APPE-CHICKENREX-MC-Chicken-With-Asparagus-and-Scallions-hptm/06FD-APPE-CHICKENREX-MC-Chicken-With-Asparagus-and-Scallions-hptm-videoSixteenByNineJumbo1600.jpg',
     tags: ['weeknight', 'sheet-pan'],
     minutes: 45,
   },
@@ -123,6 +152,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Shakshuka',
     siteName: 'Love and Lemons',
     url: 'https://www.loveandlemons.com/shakshuka-recipe/',
+    imageUrl:
+      'https://cdn.loveandlemons.com/wp-content/uploads/2026/01/shakshuka-500x500.jpg',
     tags: ['vegetarian', 'breakfast', 'skillet'],
     minutes: 35,
   },
@@ -131,6 +162,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Best Lentil Soup',
     siteName: 'Love and Lemons',
     url: 'https://www.loveandlemons.com/lentil-soup/',
+    imageUrl:
+      'https://cdn.loveandlemons.com/wp-content/uploads/2023/12/lentil-soup-500x500.jpg',
     tags: ['vegetarian', 'soup', 'make-ahead'],
     minutes: 60,
   },
@@ -139,6 +172,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Sheet Pan Gnocchi',
     siteName: 'Love and Lemons',
     url: 'https://www.loveandlemons.com/sheet-pan-gnocchi/',
+    imageUrl:
+      'https://cdn.loveandlemons.com/wp-content/uploads/2023/03/sheet-pan-gnocchi-500x500.jpg',
     tags: ['weeknight', 'vegetarian', 'sheet-pan'],
     minutes: 40,
   },
@@ -147,6 +182,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Vegetarian Chili',
     siteName: 'Love and Lemons',
     url: 'https://www.loveandlemons.com/vegetarian-chili-recipe/',
+    imageUrl:
+      'https://cdn.loveandlemons.com/wp-content/uploads/2019/10/vegetarian-chili-1-500x500.jpg',
     tags: ['vegetarian', 'one-pot', 'make-ahead'],
     minutes: 45,
   },
@@ -155,6 +192,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Crispy Black Bean Tacos with Cilantro Lime Sauce',
     siteName: 'Pinch of Yum',
     url: 'https://pinchofyum.com/crispy-black-bean-tacos-with-cilantro-lime-sauce',
+    imageUrl:
+      'https://pinchofyum.com/tachyon/Crispy-Black-Bean-Tacos-Square.png?fit=225%2C225',
     tags: ['weeknight', 'vegetarian'],
     minutes: 25,
   },
@@ -163,6 +202,8 @@ export const catalog: CatalogEntry[] = [
     title: 'The Best Chicken Tinga Tacos',
     siteName: 'Pinch of Yum',
     url: 'https://pinchofyum.com/the-best-chicken-tinga-tacos',
+    imageUrl:
+      'https://pinchofyum.com/tachyon/Chicken-Tinga-Tacos-1-2.jpg?fit=225%2C225',
     tags: ['weeknight'],
     minutes: 20,
   },
@@ -171,6 +212,8 @@ export const catalog: CatalogEntry[] = [
     title: "Ang's Creamy Tortellini Soup",
     siteName: 'Pinch of Yum',
     url: 'https://pinchofyum.com/tortellini-soup',
+    imageUrl:
+      'https://pinchofyum.com/tachyon/The-Best-Tortellini-Soup-Square.jpg?fit=225%2C225',
     tags: ['weeknight', 'soup', 'one-pot'],
     minutes: 40,
   },
@@ -179,6 +222,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Easy chicken curry',
     siteName: 'BBC Good Food',
     url: 'https://www.bbcgoodfood.com/recipes/easy-chicken-curry',
+    imageUrl:
+      'https://images.immediate.co.uk/production/volatile/sites/30/2020/08/easy-chicken-curry-aa22a0b.jpg?resize=440,400',
     tags: ['weeknight', 'curry'],
     minutes: 50,
   },
@@ -187,6 +232,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Speedy lentil coconut curry',
     siteName: 'BBC Good Food',
     url: 'https://www.bbcgoodfood.com/recipes/speedy-lentil-coconut-curry',
+    imageUrl:
+      'https://images.immediate.co.uk/production/volatile/sites/30/2023/11/Speedy-lentil-coconut-curry-58d7b8c.jpg?resize=768,713',
     tags: ['weeknight', 'vegetarian', 'curry'],
     minutes: 25,
   },
@@ -195,6 +242,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Creamy salmon, leek & potato traybake',
     siteName: 'BBC Good Food',
     url: 'https://www.bbcgoodfood.com/recipes/creamy-salmon-leek-potato-traybake',
+    imageUrl:
+      'https://images.immediate.co.uk/production/volatile/sites/30/2020/08/creamy-salmon-leek-potato-traybake-367b3ff.jpg?resize=440,400',
     tags: ['weeknight', 'sheet-pan', 'fish'],
     minutes: 40,
   },
@@ -203,6 +252,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Chicken pasta bake',
     siteName: 'BBC Good Food',
     url: 'https://www.bbcgoodfood.com/recipes/chicken-pasta-bake',
+    imageUrl:
+      'https://images.immediate.co.uk/production/volatile/sites/30/2020/08/chicken_pasta_bake-06fe2d6.jpg?resize=440,400',
     tags: ['pasta', 'make-ahead'],
     minutes: 75,
   },
@@ -211,6 +262,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Vegan Sweet Potato Chickpea Taco Salad',
     siteName: 'Minimalist Baker',
     url: 'https://minimalistbaker.com/vegan-chickpea-taco-salad/',
+    imageUrl:
+      'https://minimalistbaker.com/wp-content/uploads/2024/05/Vegan-Sweet-Potato-Chickpea-Taco-Salad-SQUARE.jpg',
     tags: ['vegetarian', 'salad'],
     minutes: 30,
   },
@@ -219,6 +272,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Creamy Curried Black Eyed Pea Soup',
     siteName: 'Minimalist Baker',
     url: 'https://minimalistbaker.com/curried-black-eyed-pea-soup/',
+    imageUrl:
+      'https://minimalistbaker.com/wp-content/uploads/2025/06/Creamy-Curried-Vegan-Black-Eyed-Bean-Soup-SQUARE.jpg',
     tags: ['vegetarian', 'soup', 'one-pot'],
     minutes: 60,
   },
@@ -227,6 +282,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Vegan Gluten-Free Morning Glory Muffins',
     siteName: 'Minimalist Baker',
     url: 'https://minimalistbaker.com/vegan-gluten-free-morning-glory-muffins/',
+    imageUrl:
+      'https://minimalistbaker.com/wp-content/uploads/2024/01/Vegan-Gluten-Free-Morning-Glory-Muffins-SQUARE.jpg',
     tags: ['breakfast', 'baking', 'vegetarian'],
     minutes: 35,
   },
@@ -235,6 +292,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Pasta Alla Vodka',
     siteName: 'Bon Appétit',
     url: 'https://www.bonappetit.com/recipe/rigatoni-with-easy-vodka-sauce',
+    imageUrl:
+      'https://assets.bonappetit.com/photos/6a51320da6e8eb75b0078d2c/16:9/w_1120,h_630,c_limit/rigatoni-pasta-vodka-sauce-RECIPE.png',
     tags: ['vegetarian', 'pasta'],
     minutes: null,
   },
@@ -243,6 +302,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Crispy Tofu With Peanut Sauce',
     siteName: 'Bon Appétit',
     url: 'https://www.bonappetit.com/recipe/tofu-peanut-sauce',
+    imageUrl:
+      'https://assets.bonappetit.com/photos/6568e0dd7277df919594ebdf/16:9/w_4768,h_2682,c_limit/20231120%20-WEB-Tofu-6368.jpg',
     tags: ['weeknight', 'vegetarian'],
     minutes: null,
   },
@@ -251,6 +312,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Hot Honey–Glazed Salmon',
     siteName: 'Bon Appétit',
     url: 'https://www.bonappetit.com/recipe/hot-honey-glazed-salmon',
+    imageUrl:
+      'https://assets.bonappetit.com/photos/695d3a36351f3afa2a247728/16:9/w_4000,h_2250,c_limit/20251104_04_WKNT_Hot%20Honey%20Salmon_055_FINAL.jpg',
     tags: ['weeknight', 'fish'],
     minutes: null,
   },
@@ -259,6 +322,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Caramelized Onion Pasta',
     siteName: 'Epicurious',
     url: 'https://www.epicurious.com/recipes/food/views/caramelized-onion-pasta',
+    imageUrl:
+      'https://assets.epicurious.com/photos/5cb8bce9b6addb519525d1b2/16:9/w_5664,h_3186,c_limit/Caramelized-Onion-Pasta-recipe-100419.jpg',
     tags: ['vegetarian', 'pasta'],
     minutes: null,
   },
@@ -267,6 +332,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Fluffy Diner-Style Buttermilk Pancakes',
     siteName: 'Epicurious',
     url: 'https://www.epicurious.com/recipes/food/views/diner-style-buttermilk-pancakes',
+    imageUrl:
+      'https://assets.epicurious.com/photos/5771860a90773c635caa8169/16:9/w_2000,h_1125,c_limit/diner-seltzer-pancakes-inset-22062016.jpg',
     tags: ['breakfast', 'vegetarian'],
     minutes: null,
   },
@@ -275,6 +342,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Baked Butter Paneer',
     siteName: 'Epicurious',
     url: 'https://www.epicurious.com/recipes/food/views/baked-butter-paneer',
+    imageUrl:
+      'https://assets.epicurious.com/photos/68dff61e7dc2b3b7c6b2f2fc/16:9/w_4368,h_2457,c_limit/BUTTER_PANEER_MEERA_1840.jpeg',
     tags: ['vegetarian', 'curry'],
     minutes: null,
   },
@@ -283,6 +352,8 @@ export const catalog: CatalogEntry[] = [
     title: '10-Minute Chicken, Corn and Kimchi Ramen',
     siteName: 'Food Network',
     url: 'https://www.foodnetwork.com/recipes/food-network-kitchen/10-minute-chicken-corn-and-kimchi-ramen-3363134',
+    imageUrl:
+      'https://food.fnr.sndimg.com/content/dam/images/food/fullset/2014/8/12/1/FN_10-Minute-Chicken-Corn-and-Kimchi-Ramen_s4x3.jpg.rend.hgtvcom.1280.1280.suffix/1407925012326.webp',
     tags: ['weeknight', 'soup'],
     minutes: null,
   },
@@ -291,6 +362,8 @@ export const catalog: CatalogEntry[] = [
     title: '1-Hour Beef Pho',
     siteName: 'Food Network',
     url: 'https://www.foodnetwork.com/recipes/food-network-kitchen/1-hour-beef-pho-12572145',
+    imageUrl:
+      'https://food.fnr.sndimg.com/content/dam/images/food/fullset/2022/06/02/0/FNK_1-Hour-Pho_H1_s4x3.jpg.rend.hgtvcom.1280.1280.suffix/1654187508571.webp',
     tags: ['soup'],
     minutes: null,
   },
@@ -299,6 +372,8 @@ export const catalog: CatalogEntry[] = [
     title: '"16 Bean" Pasta E Fagioli',
     siteName: 'Food Network',
     url: 'https://www.foodnetwork.com/recipes/ina-garten/16-bean-pasta-e-fagioli-3612570',
+    imageUrl:
+      'https://food.fnr.sndimg.com/content/dam/images/food/fullset/2017/1/18/0/FNM030117_Pasta-e-Fagioli_s4x3.jpg.rend.hgtvcom.1280.1280.suffix/1484758909116.webp',
     tags: ['soup', 'make-ahead'],
     minutes: null,
   },
@@ -307,6 +382,8 @@ export const catalog: CatalogEntry[] = [
     title: 'The Best Easy Beef and Broccoli Stir-Fry',
     siteName: 'Food.com',
     url: 'https://www.food.com/recipe/the-best-easy-beef-and-broccoli-stir-fry-99476',
+    imageUrl:
+      'https://img.sndimg.com/food/image/upload/q_92,fl_progressive,w_1200,c_scale/v1/img/recipes/99/47/6/01z114QRWGncDabUUJod_0S9A5937.jpg',
     tags: ['weeknight', 'skillet'],
     minutes: 25,
   },
@@ -315,6 +392,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Steak (Or Chicken) Fajitas',
     siteName: 'Food.com',
     url: 'https://www.food.com/recipe/steak-or-chicken-fajitas-63786',
+    imageUrl:
+      'https://img.sndimg.com/food/image/upload/q_92,fl_progressive,w_1200,c_scale/v1/img/recipes/63/78/6/NrPa79ZESEOqMlMoFDos_fajitas-3.jpg',
     tags: ['weeknight'],
     minutes: 20,
   },
@@ -323,6 +402,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Homemade Chicken Noodle Soup',
     siteName: 'Food.com',
     url: 'https://www.food.com/recipe/homemade-chicken-noodle-soup-8528',
+    imageUrl:
+      'https://img.sndimg.com/food/image/upload/q_92,fl_progressive,w_1200,c_scale/v1/img/recipes/85/28/Kw96PfKjSEy6yNw2SKI3_Chicken-Noodle-Soup-1.png',
     tags: ['soup', 'make-ahead'],
     minutes: 360,
   },
@@ -331,6 +412,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Shrimp Linguine with Saffron Sauce',
     siteName: 'Taste of Home',
     url: 'https://www.tasteofhome.com/recipes/shrimp-linguine-with-saffron-sauce/',
+    imageUrl:
+      'https://www.tasteofhome.com/wp-content/uploads/2026/07/Shrimp-Linguine-with-Saffron-Sauce_EXPS_FT26_283086_AC_0721_4.jpg',
     tags: ['weeknight', 'pasta', 'fish'],
     minutes: 25,
   },
@@ -339,6 +422,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Blueberry Brie Grilled Cheese',
     siteName: 'Taste of Home',
     url: 'https://www.tasteofhome.com/recipes/blueberry-brie-grilled-cheese/',
+    imageUrl:
+      'https://www.tasteofhome.com/wp-content/uploads/2026/07/Balsamic-Blueberry-Brie-Grilled-Cheese_EXPS_FT26_283085_AC_0722_4.jpg',
     tags: ['vegetarian', 'lunch'],
     minutes: 35,
   },
@@ -347,6 +432,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Greek Chicken & Halloumi Skewers',
     siteName: 'Delish',
     url: 'https://www.delish.com/cooking/recipe-ideas/a73288337/greek-chicken-and-halloumi-skewers-recipe/',
+    imageUrl:
+      'https://hips.hearstapps.com/hmg-prod/images/cfdd3a94-45d1-46ff-a978-d73884856b1c.jpg?crop=0.5xw:1xh;0.287xw,0xh&resize=1200:*',
     tags: ['grilling'],
     minutes: 60,
   },
@@ -355,6 +442,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Ham & Cheese Brunch Bake',
     siteName: 'Delish',
     url: 'https://www.delish.com/cooking/recipe-ideas/a50777/ham-cheese-brunch-bake-recipe/',
+    imageUrl:
+      'https://hips.hearstapps.com/hmg-prod/images/ham-and-cheese-brunch-bake-index-web-509-jg-del029925-67d87d90c9cfe.jpg?crop=0.502xw:1.00xh;0.447xw,0&resize=1200:*',
     tags: ['breakfast', 'make-ahead'],
     minutes: 75,
   },
@@ -363,6 +452,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Quick & Easy Banana Muffins',
     siteName: "Sally's Baking Addiction",
     url: 'https://sallysbakingaddiction.com/banana-muffins/',
+    imageUrl:
+      'https://sallysbakingaddiction.com/wp-content/uploads/2018/12/banana-muffins-recipe-2-225x225.jpg',
     tags: ['baking', 'breakfast'],
     minutes: 30,
   },
@@ -371,6 +462,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Brown Butter Chocolate Chip Cookies',
     siteName: "Sally's Baking Addiction",
     url: 'https://sallysbakingaddiction.com/brown-butter-chocolate-chip-cookies/',
+    imageUrl:
+      'https://sallysbakingaddiction.com/wp-content/uploads/2014/12/brown-butter-chocolate-chip-cookies-recipe-225x225.jpg',
     tags: ['baking'],
     minutes: 300,
   },
@@ -379,6 +472,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Gluten-Free Sheet Pan Pizza',
     siteName: 'King Arthur Baking',
     url: 'https://www.kingarthurbaking.com/recipes/gluten-free-sheet-pan-pizza-recipe',
+    imageUrl:
+      'https://www.kingarthurbaking.com/sites/default/files/2025-11/Gluten-Free-Sheet-Pan-Pizza_2025_Lifestyle_H_0645.jpg',
     tags: ['baking', 'vegetarian'],
     minutes: 180,
   },
@@ -387,6 +482,8 @@ export const catalog: CatalogEntry[] = [
     title: 'Mini Cheesecakes',
     siteName: 'King Arthur Baking',
     url: 'https://www.kingarthurbaking.com/recipes/mini-cheesecakes-recipe',
+    imageUrl:
+      'https://www.kingarthurbaking.com/sites/default/files/2025-11/Mini-Cheesecakes_2025_Lifestyle_Graphic_H_0808.jpg',
     tags: ['baking'],
     minutes: 300,
   },

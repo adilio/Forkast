@@ -76,6 +76,28 @@ async function addOne(
 }
 
 /**
+ * Remembers the drafts already read from publishers this session.
+ *
+ * Previewing a recipe and then adding it is one read, not two: both go through
+ * the same importer, which allows ten reads a minute per person, and reading
+ * the same page twice would spend that allowance on nothing. Failures are not
+ * cached — a publisher that timed out may answer on the next try.
+ */
+export function createDraftCache(read: (url: string) => Promise<ImportedDraft>) {
+  const drafts = new Map<string, ImportedDraft>();
+  return {
+    peek: (url: string) => drafts.get(url),
+    async get(url: string) {
+      const cached = drafts.get(url);
+      if (cached) return cached;
+      const draft = await read(url);
+      drafts.set(url, draft);
+      return draft;
+    },
+  };
+}
+
+/**
  * The import function allows ten imports per minute per person. A batch runs
  * one under that and then waits out the rest of the window, so adding the whole
  * catalog is slow and complete rather than fast and half-refused.

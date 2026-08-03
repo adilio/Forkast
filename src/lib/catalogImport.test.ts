@@ -3,6 +3,7 @@ import type { CatalogEntry } from '../data/catalog';
 import {
   IMPORTS_PER_MINUTE,
   addCatalogEntries,
+  createDraftCache,
   createImportPacer,
 } from './catalogImport';
 import { recipeDuplicateKey, type ImportedDraft } from './recipes';
@@ -13,6 +14,7 @@ const entry = (id: string, url: string): CatalogEntry => ({
   title: id,
   siteName: 'Somewhere',
   url,
+  imageUrl: '',
   tags: [],
   minutes: null,
 });
@@ -138,6 +140,42 @@ describe('adding catalog recipes', () => {
       [1, 2],
       [2, 2],
     ]);
+  });
+});
+
+describe('reading a recipe once', () => {
+  it('adds a previewed recipe without reading it again', async () => {
+    const read = vi.fn(async () => draft());
+    const cache = createDraftCache(read);
+    await cache.get('https://example.com/chicken-and-rice');
+    const results = await addCatalogEntries(
+      [entry('chicken', 'https://example.com/chicken-and-rice')],
+      { existingKeys: new Set(), importDraft: cache.get, saveRecipe: async () => {} },
+    );
+    expect(results[0].outcome).toBe('added');
+    expect(read).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not remember a failure', async () => {
+    let attempt = 0;
+    const cache = createDraftCache(async () => {
+      attempt += 1;
+      if (attempt === 1) throw new Error('The recipe site took too long to respond.');
+      return draft();
+    });
+    await expect(cache.get('https://example.com/slow')).rejects.toThrow('too long');
+    await expect(cache.get('https://example.com/slow')).resolves.toMatchObject({
+      title: 'Chicken and rice',
+    });
+  });
+
+  it('reports whether a recipe is already in hand', async () => {
+    const cache = createDraftCache(async () => draft());
+    expect(cache.peek('https://example.com/one')).toBeUndefined();
+    await cache.get('https://example.com/one');
+    expect(cache.peek('https://example.com/one')).toMatchObject({
+      title: 'Chicken and rice',
+    });
   });
 });
 

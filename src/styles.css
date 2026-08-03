@@ -834,10 +834,28 @@ input:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  min-height: 4.25rem;
-  padding: 0.75rem 0;
+  gap: 0.5rem;
+  min-height: 4.75rem;
   border-bottom: 1px solid var(--line);
+}
+/* The whole ticket opens the recipe; the trailing button is the only other
+   target, so the two never compete for the same tap. */
+.catalog-row__main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  min-height: 4.75rem;
+  padding: 0.75rem 0.5rem 0.75rem 0;
+  color: var(--ink);
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.catalog-row__main .recipe-thumb {
+  flex: none;
 }
 .catalog-row:last-child {
   border-bottom: 0;
@@ -863,6 +881,40 @@ input:hover {
   color: var(--action-hover);
   font-size: 0.8125rem;
   font-weight: 750;
+}
+.catalog-preview {
+  display: grid;
+  gap: 1.5rem;
+  padding: 2vh 0 2rem;
+  max-width: 62rem;
+}
+.catalog-preview > header {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+}
+.catalog-preview h1 {
+  margin: 0;
+}
+.catalog-preview__lede {
+  max-width: 62ch;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.catalog-preview__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 0.5rem;
+}
+/* Capped rather than full-bleed: the recipe is the work, the photograph is
+   only enough to recognise the dish by. */
+.catalog-preview__image {
+  width: 100%;
+  max-height: 22rem;
+  object-fit: cover;
+  border-radius: 10px;
 }
 .catalog-failures {
   padding: 0.75rem 0;
@@ -1007,6 +1059,11 @@ select {
   padding: 0.75rem 0;
   border-bottom: 1px solid var(--line);
   line-height: 1.45;
+}
+/* The preview has nothing to select: there is no recipe to send anywhere yet,
+   so the checkbox column is not reserved. */
+.ingredient-list--plain li {
+  grid-template-columns: minmax(4.5rem, auto) minmax(0, 1fr);
 }
 .ingredient-toggle {
   display: grid;

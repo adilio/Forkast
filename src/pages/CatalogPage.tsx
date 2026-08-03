@@ -1,15 +1,22 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'wouter';
+import { CatalogPreview } from '../components/CatalogPreview';
 import { CatalogRows } from '../components/CatalogRows';
-import { catalog } from '../data/catalog';
+import { catalog, type CatalogEntry } from '../data/catalog';
 import { useAuth } from '../lib/auth';
+import type { ImportedDraft } from '../lib/recipes';
 import { useCatalogAdder } from '../lib/useCatalogAdder';
 
 export default function CatalogPage() {
   const { householdId } = useAuth();
-  const { add, isSaved, addingIds, progress, failures, ready } =
+  const { add, preview, previewing, isSaved, addingIds, progress, failures, ready } =
     useCatalogAdder(householdId);
   const [tag, setTag] = useState('all');
+  const [opened, setOpened] = useState<{
+    entry: CatalogEntry;
+    draft: ImportedDraft;
+  } | null>(null);
+  const [readError, setReadError] = useState('');
   const tags = useMemo(
     () => [...new Set(catalog.flatMap((entry) => entry.tags))].sort(),
     [],
@@ -20,15 +27,56 @@ export default function CatalogPage() {
   );
   const unsaved = shown.filter((entry) => !isSaved(entry));
   const working = addingIds.size > 0;
+
+  async function open(entry: CatalogEntry) {
+    setReadError('');
+    const result = await preview(entry);
+    if (result.draft) setOpened({ entry, draft: result.draft });
+    else setReadError(`${entry.title}: ${result.message}`);
+  }
+
+  // The week's picks link here with a recipe already chosen, so the same tap
+  // opens the same preview from either surface.
+  const requested = useMemo(() => {
+    const wanted = new URLSearchParams(window.location.search).get('recipe');
+    return catalog.find((row) => row.id === wanted);
+  }, []);
+  useEffect(() => {
+    if (!requested) return;
+    let live = true;
+    void preview(requested).then((result) => {
+      if (!live) return;
+      if (result.draft) setOpened({ entry: requested, draft: result.draft });
+      else setReadError(`${requested.title}: ${result.message}`);
+    });
+    return () => {
+      live = false;
+    };
+  }, [requested, preview]);
+
+  if (opened)
+    return (
+      <section className="task-page">
+        <CatalogPreview
+          entry={opened.entry}
+          draft={opened.draft}
+          saved={isSaved(opened.entry)}
+          adding={addingIds.has(opened.entry.id)}
+          onAdd={() => void add([opened.entry])}
+          onBack={() => setOpened(null)}
+        />
+      </section>
+    );
+
   return (
     <section className="task-page">
       <header className="page-heading">
         <p className="kicker">Starter catalog</p>
         <h1>Recipes to try</h1>
         <p>
-          {catalog.length} recipes from sites Forkast can read. Adding one reads the
-          recipe from the original site, the same way saving a link does, and keeps the
-          source on the recipe.
+          {catalog.length} recipes from sites Forkast can read. Open one to see the
+          whole recipe before you decide; adding it reads from the original site, the
+          same way saving a link does, and keeps the source on the recipe.
         </p>
       </header>
       <div className="library-tools">
@@ -60,6 +108,11 @@ export default function CatalogPage() {
           {progress}
         </p>
       )}
+      {readError && (
+        <p className="form-message" role="alert">
+          {readError}
+        </p>
+      )}
       {failures.length > 0 && (
         <details className="catalog-failures">
           <summary>{failures.length} could not be read</summary>
@@ -79,7 +132,9 @@ export default function CatalogPage() {
         entries={shown}
         isSaved={isSaved}
         addingIds={addingIds}
+        previewing={previewing}
         onAdd={(entry) => void add([entry])}
+        onPreview={(entry) => void open(entry)}
       />
       <Link className="text-button" href="/recipes">
         ← Back to recipes

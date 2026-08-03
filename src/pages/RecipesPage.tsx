@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { CatalogRows } from '../components/CatalogRows';
 import { RecipeForm } from '../components/RecipeForm';
 import { catalog } from '../data/catalog';
@@ -208,7 +208,9 @@ export default function RecipesPage() {
  * enough to sit above someone's own recipe book without competing with it.
  */
 function RecipesOfTheWeek({ householdId }: { householdId: string | null }) {
-  const { add, isSaved, addingIds, progress, failures } = useCatalogAdder(householdId);
+  const { add, previewing, isSaved, addingIds, progress, failures } =
+    useCatalogAdder(householdId);
+  const [, navigate] = useLocation();
   const picks = useMemo(
     () =>
       weeklyPicks(
@@ -233,7 +235,9 @@ function RecipesOfTheWeek({ householdId }: { householdId: string | null }) {
         entries={picks}
         isSaved={isSaved}
         addingIds={addingIds}
+        previewing={previewing}
         onAdd={(entry) => void add([entry])}
+        onPreview={(entry) => navigate(`/catalog?recipe=${entry.id}`)}
       />
       {progress && (
         <p className="connection-state" role="status">
