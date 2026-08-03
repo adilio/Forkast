@@ -18,6 +18,10 @@ describe('ingredient quantities', () => {
     ['1 lb ground beef', 1, 'lb', 'ground beef'],
     // Publishers often abbreviate with a period; it belongs to the unit.
     ['2 tbsp. finely chopped dill', 2, 'tbsp', 'finely chopped dill'],
+    // A written fraction is a quantity, not a whole number and a stray slash.
+    ['1/2 tsp garlic powder', 0.5, 'tsp', 'garlic powder'],
+    ['1 1/2 cups milk', 1.5, 'cups', 'milk'],
+    ['1/4-1/2 tsp cayenne', 0.25, 'tsp', 'cayenne'],
   ])('parses %s', (raw, q, unit, name) => {
     const parsed = parseIngredient(raw, 'x');
     expect(parsed).toMatchObject({ quantity: q, unit, name });

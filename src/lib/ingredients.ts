@@ -63,10 +63,13 @@ export function parseIngredient(
   const raw = rawText.trim();
   const match = raw.match(
     new RegExp(
-      // The unit must end the word it starts, and may carry a trailing period:
-      // without that, "1 garlic clove" reads as one gram of "arlic clove", and
-      // "2 tbsp. dill" keeps the period at the front of the name.
-      `^(?:(\\d+)\\s+)?(\\d+(?:\\.\\d+)?|\\d+\\/\\d+|[¼½¾⅓⅔⅛⅜⅝⅞])?(?:\\s*[-–]\\s*(\\d+(?:\\.\\d+)?|\\d+\\/\\d+|[¼½¾⅓⅔⅛⅜⅝⅞]))?\\s*(?:(${units.join('|')})\\.?(?=\\s|$)\\s*)?(.*)$`,
+      // Two rules the publishers taught us. A written fraction is tried before
+      // a plain number, because the rest of the pattern is happy to match and
+      // will not backtrack: "1/2 tsp salt" would otherwise be one of "/2 tsp
+      // salt". And a unit must end the word it starts, and may carry a
+      // trailing period, or "1 garlic clove" is one gram of "arlic clove" and
+      // "2 tbsp. dill" keeps the period at the front of its name.
+      `^(?:(\\d+)\\s+)?(\\d+\\/\\d+|\\d+(?:\\.\\d+)?|[¼½¾⅓⅔⅛⅜⅝⅞])?(?:\\s*[-–]\\s*(\\d+\\/\\d+|\\d+(?:\\.\\d+)?|[¼½¾⅓⅔⅛⅜⅝⅞]))?\\s*(?:(${units.join('|')})\\.?(?=\\s|$)\\s*)?(.*)$`,
       'i',
     ),
   );
