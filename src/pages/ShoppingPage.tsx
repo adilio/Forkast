@@ -3,6 +3,8 @@ import { useAuth } from '../lib/auth';
 import {
   addShoppingItem,
   clearChecked,
+  listenMemberPrefs,
+  listenMembers,
   listenShopping,
   listenStores,
   removeShoppingItem,
@@ -11,13 +13,29 @@ import {
   updateShoppingItem,
 } from '../lib/data';
 import { formatQuantity, normalizedIngredientName } from '../lib/ingredients';
-import type { ShoppingItem, Store } from '../lib/types';
+import type { Member, ShoppingItem, Store } from '../lib/types';
+
+/**
+ * Names the other person on an item, and nobody on your own. A list that
+ * labels every row "Adil" when Adil is reading it is noise; the useful signal
+ * is only "someone else put this here".
+ */
+function creditFor(item: ShoppingItem, members: Member[], uid: string) {
+  if (!item.createdBy || item.createdBy === uid) return '';
+  const member = members.find((m) => m.id === item.createdBy);
+  return member?.displayName || 'someone in your household';
+}
 
 export default function ShoppingPage() {
-  const { householdId } = useAuth();
+  const { householdId, user } = useAuth();
+  const uid = user?.uid ?? '';
   const [stores, setStores] = useState<Store[]>([]);
   const [items, setItems] = useState<ShoppingItem[]>([]);
-  const [active, setActive] = useState('city-market');
+  const [members, setMembers] = useState<Member[]>([]);
+  const [defaultStoreId, setDefaultStoreId] = useState<string | null>(null);
+  // Only what this reader explicitly tapped. The store actually shown is
+  // derived below, because it also depends on their saved preference.
+  const [chosen, setChosen] = useState('');
   const [online, setOnline] = useState(navigator.onLine);
   const [error, setError] = useState('');
   const [storesLoading, setStoresLoading] = useState(Boolean(householdId));
@@ -33,10 +51,6 @@ export default function ShoppingPage() {
       (rows) => {
         setStores(rows);
         setStoresLoading(false);
-        if (rows.length)
-          setActive((current) =>
-            rows.some((store) => store.id === current) ? current : rows[0].id,
-          );
       },
       () => {
         setStoresLoading(false);
@@ -58,16 +72,35 @@ export default function ShoppingPage() {
         setFromCache(state.fromCache);
       },
     );
+    const c = uid
+      ? listenMemberPrefs(householdId, uid, (prefs) =>
+          setDefaultStoreId(prefs.defaultStoreId),
+        )
+      : () => {};
+    const d = listenMembers(householdId, setMembers, () => setMembers([]));
     const update = () => setOnline(navigator.onLine);
     addEventListener('online', update);
     addEventListener('offline', update);
     return () => {
       a();
       b();
+      c();
+      d();
       removeEventListener('online', update);
       removeEventListener('offline', update);
     };
-  }, [householdId]);
+  }, [householdId, uid]);
+  /**
+   * Derived rather than stored, so the tab can open on the reader's own store
+   * the moment their preference arrives without an effect racing the render.
+   * An explicit tap wins; otherwise this person's default store does; otherwise
+   * the first one the household has.
+   */
+  const active =
+    stores.find((store) => store.id === chosen)?.id ??
+    stores.find((store) => store.id === defaultStoreId)?.id ??
+    stores[0]?.id ??
+    '';
   const visible = useMemo(
     () => items.filter((x) => x.storeId === active),
     [items, active],
@@ -135,7 +168,7 @@ export default function ShoppingPage() {
           <button
             aria-pressed={active === store.id}
             key={store.id}
-            onClick={() => setActive(store.id)}
+            onClick={() => setChosen(store.id)}
           >
             <span>{store.name}</span>
             <small>
@@ -178,6 +211,7 @@ export default function ShoppingPage() {
             item={item}
             householdId={householdId!}
             stores={stores}
+            addedBy={creditFor(item, members, uid)}
             onRemove={async (item) => {
               await removeShoppingItem(householdId!, item.id);
               setRemoved(item);
@@ -200,6 +234,7 @@ export default function ShoppingPage() {
               item={item}
               householdId={householdId!}
               stores={stores}
+              addedBy={creditFor(item, members, uid)}
               onRemove={async (item) => {
                 await removeShoppingItem(householdId!, item.id);
                 setRemoved(item);
@@ -239,13 +274,24 @@ function ShoppingRow({
   item,
   householdId,
   stores,
+  addedBy,
   onRemove,
 }: {
   item: ShoppingItem;
   householdId: string;
   stores: Store[];
+  addedBy: string;
   onRemove: (item: ShoppingItem) => Promise<void>;
 }) {
+  const detail = [
+    item.quantity != null
+      ? `${formatQuantity(item.quantity)}${
+          item.quantityMax != null ? `–${formatQuantity(item.quantityMax)}` : ''
+        } ${item.unit || ''}`.trim()
+      : '',
+    item.note || '',
+    addedBy ? `added by ${addedBy}` : '',
+  ].filter(Boolean);
   return (
     <div className={`shopping-row ${item.checked ? 'shopping-row--checked' : ''}`}>
       <label>
@@ -258,19 +304,7 @@ function ShoppingRow({
         />
         <span>
           <strong>{item.name}</strong>
-          {(item.quantity != null || item.note) && (
-            <small>
-              {item.quantity != null
-                ? `${formatQuantity(item.quantity)}${
-                    item.quantityMax != null
-                      ? `–${formatQuantity(item.quantityMax)}`
-                      : ''
-                  } ${item.unit || ''}`.trim()
-                : ''}
-              {item.quantity != null && item.note ? ' · ' : ''}
-              {item.note || ''}
-            </small>
-          )}
+          {detail.length > 0 && <small>{detail.join(' · ')}</small>}
         </span>
       </label>
       <select

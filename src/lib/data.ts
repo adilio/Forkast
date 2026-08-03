@@ -11,16 +11,33 @@ import {
   setDoc,
   updateDoc,
   writeBatch,
+  type QuerySnapshot,
   type Unsubscribe,
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { normalizedIngredientName } from './ingredients';
 import { recipeDuplicateKey } from './recipes';
-import type { Recipe, ShoppingItem, Store } from './types';
+import type {
+  Member,
+  MemberPrefs,
+  NewShoppingItem,
+  Recipe,
+  ShoppingItem,
+  Store,
+} from './types';
 
 function path(householdId: string, name: string) {
   if (!db) throw new Error('Firebase is not configured.');
   return collection(db, 'households', householdId, name);
+}
+/** One person's own preference documents, which only they may write. */
+function memberPath(householdId: string, uid: string, name: string) {
+  if (!db) throw new Error('Firebase is not configured.');
+  return collection(db, 'households', householdId, 'memberPrefs', uid, name);
+}
+function memberPrefsDoc(householdId: string, uid: string) {
+  if (!db) throw new Error('Firebase is not configured.');
+  return doc(db, 'households', householdId, 'memberPrefs', uid);
 }
 const actor = () => auth?.currentUser?.uid ?? '';
 export function listenRecipes(
@@ -93,10 +110,7 @@ export function listenShopping(
     onError,
   );
 }
-export async function addShoppingItem(
-  householdId: string,
-  input: Omit<ShoppingItem, 'id'>,
-) {
+export async function addShoppingItem(householdId: string, input: NewShoppingItem) {
   await addDoc(path(householdId, 'shoppingItems'), {
     ...input,
     createdAt: serverTimestamp(),
@@ -107,7 +121,7 @@ export async function addShoppingItem(
 }
 export async function addIngredientToShopping(
   householdId: string,
-  input: Omit<ShoppingItem, 'id'>,
+  input: NewShoppingItem,
 ) {
   const snap = await getDocs(path(householdId, 'shoppingItems'));
   const match = snap.docs.find((row) => {
@@ -165,22 +179,92 @@ export async function clearChecked(
     .forEach((x) => batch.delete(doc(path(householdId, 'shoppingItems'), x.id)));
   await batch.commit();
 }
+/**
+ * Records where *this person* buys an ingredient. Deliberately writes only the
+ * caller's own rules: the household-wide collection is the pre-split baseline
+ * and is now read-only, because writing it let whoever shopped last silently
+ * retrain routing for everyone else.
+ */
 export async function rememberStore(
   householdId: string,
   name: string,
   storeId: string,
 ) {
-  const key = normalizedIngredientName(name);
-  await setDoc(doc(path(householdId, 'ingredientStoreRules'), key), {
-    displayName: name,
-    storeId,
-    updatedAt: serverTimestamp(),
-    updatedBy: actor(),
-  });
+  const uid = actor();
+  if (!uid) throw new Error('Sign in to save a store preference.');
+  await setDoc(
+    doc(memberPath(householdId, uid, 'storeRules'), normalizedIngredientName(name)),
+    {
+      displayName: name,
+      storeId,
+      updatedAt: serverTimestamp(),
+      updatedBy: uid,
+    },
+  );
 }
-export async function getRememberedStores(householdId: string) {
-  const snap = await getDocs(path(householdId, 'ingredientStoreRules'));
-  return new Map(snap.docs.map((d) => [d.id, d.data().storeId as string]));
+
+/** This person's own rules, and the household baseline they inherit. */
+export async function getStoreRules(householdId: string, uid: string) {
+  const [mine, household] = await Promise.all([
+    getDocs(memberPath(householdId, uid, 'storeRules')),
+    getDocs(path(householdId, 'ingredientStoreRules')),
+  ]);
+  const toMap = (snap: QuerySnapshot) =>
+    new Map(snap.docs.map((d) => [d.id, d.data().storeId as string]));
+  return { mine: toMap(mine), household: toMap(household) };
+}
+
+export async function clearMyStoreRules(householdId: string, uid: string) {
+  const snap = await getDocs(memberPath(householdId, uid, 'storeRules'));
+  const batch = writeBatch(db!);
+  snap.docs.forEach((d) => batch.delete(d.ref));
+  await batch.commit();
+  return snap.size;
+}
+
+export function listenMemberPrefs(
+  householdId: string,
+  uid: string,
+  onData: (prefs: MemberPrefs) => void,
+  onError?: (e: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    memberPrefsDoc(householdId, uid),
+    (snap) =>
+      onData({ defaultStoreId: (snap.data()?.defaultStoreId as string) ?? null }),
+    onError,
+  );
+}
+
+export async function setDefaultStore(
+  householdId: string,
+  uid: string,
+  storeId: string,
+) {
+  await setDoc(
+    memberPrefsDoc(householdId, uid),
+    { defaultStoreId: storeId, updatedAt: serverTimestamp(), updatedBy: uid },
+    { merge: true },
+  );
+}
+
+export function listenMembers(
+  householdId: string,
+  onData: (rows: Member[]) => void,
+  onError?: (e: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    path(householdId, 'members'),
+    (snap) =>
+      onData(
+        snap.docs.map((d) => ({
+          id: d.id,
+          displayName: (d.data().displayName as string) || '',
+          role: (d.data().role as Member['role']) ?? 'member',
+        })),
+      ),
+    onError,
+  );
 }
 export async function getRecipeDuplicateKeys(householdId: string) {
   const snap = await getDocs(path(householdId, 'recipes'));

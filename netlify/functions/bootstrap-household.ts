@@ -19,6 +19,9 @@ export default async (request: Request) => {
     });
     batch.set(adminDb.doc(`households/${householdId}/members/${user.uid}`), {
       role: 'owner',
+      // Mirrored here because users/{uid} is only readable by that user, so a
+      // shared list has no other way to name who added an item.
+      displayName: user.name || '',
       joinedAt: FieldValue.serverTimestamp(),
     });
     batch.set(adminDb.doc(`households/${householdId}/stores/city-market`), {

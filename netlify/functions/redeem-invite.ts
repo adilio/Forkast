@@ -28,6 +28,8 @@ export default async (request: Request) => {
       tx.update(invite.ref, { usedAt: FieldValue.serverTimestamp() });
       tx.set(adminDb.doc(`households/${householdId}/members/${user.uid}`), {
         role: 'member',
+        // See bootstrap-household: the shared list names people from here.
+        displayName: user.name || '',
         joinedAt: FieldValue.serverTimestamp(),
       });
       tx.set(adminDb.doc(`users/${user.uid}`), {

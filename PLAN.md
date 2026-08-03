@@ -759,18 +759,15 @@ entirely.
 `npm run check` passes at the handoff point: typecheck, ESLint, Prettier, 35
 unit tests, production build.
 
-**The Firestore emulator does not run on this machine.** It needs a Java
-runtime and none is installed. `brew install --cask temurin` needs a sudo
-password, which a non-interactive agent cannot supply — the owner has to run it,
-for example by typing `! brew install --cask temurin` in a Claude Code session.
-Until then:
+**The Firestore emulator now runs locally.** It needs a Java runtime; the owner
+installed Temurin 26 on 2026-08-03, and `npm run test:rules` passes. A
+non-interactive agent cannot install it — `brew install --cask temurin` needs a
+sudo password — so if a fresh machine lacks Java, ask the owner to run
+`! brew install --cask temurin` rather than attempting it.
 
-- Rules tests run only in GitHub Actions, where Java exists. Treat a rules
-  change as unverified locally and watch the `rules` job.
-- Signed-in screens cannot be driven in a local browser, because sign-in needs
-  either the Auth emulator or production. The appearance work was verified
-  against the real stylesheet in Chrome by injecting the control's markup into
-  the signed-out page; that technique works for CSS but not for data flows.
-
-Do not let this block implementation. Write the unit tests, push, and let CI
-cover the rules.
+To drive signed-in screens in a real browser, set
+`VITE_USE_FIREBASE_EMULATORS=true` in `.env.local`, start
+`npx firebase emulators:start --project forkast-4dl --only auth,firestore`, and
+seed a household through the Auth emulator. **Set the flag back to `false`
+before committing** — it is a local-only switch and shipping it true would point
+production at 127.0.0.1.

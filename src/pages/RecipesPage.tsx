@@ -6,7 +6,8 @@ import { useAuth } from '../lib/auth';
 import {
   addIngredientToShopping,
   deleteRecipe,
-  getRememberedStores,
+  getStoreRules,
+  listenMemberPrefs,
   listenRecipes,
   listenStores,
   rememberStore,
@@ -18,6 +19,7 @@ import {
   normalizedIngredientName,
   scaleIngredient,
 } from '../lib/ingredients';
+import { fallbackStore, routeIngredient, type StoreRouting } from '../lib/storeRouting';
 import type { Recipe } from '../lib/types';
 import type { Store } from '../lib/types';
 
@@ -203,13 +205,16 @@ function RecipeDetail({
   onBack: () => void;
   onEdit: () => void;
 }) {
+  const { user } = useAuth();
+  const uid = user?.uid ?? '';
   const [servings, setServings] = useState(recipe.baseServings ?? 1);
   const [stores, setStores] = useState<Store[]>([]);
   const [storeId, setStoreId] = useState('remembered');
-  const [lastStoreId, setLastStoreId] = useState(
-    () => localStorage.getItem('forkast:last-store') || 'city-market',
-  );
-  const [rememberedStores, setRememberedStores] = useState(new Map<string, string>());
+  const [defaultStoreId, setDefaultStoreId] = useState<string | null>(null);
+  const [rules, setRules] = useState<{
+    mine: Map<string, string>;
+    household: Map<string, string>;
+  }>(() => ({ mine: new Map(), household: new Map() }));
   const [selectedIngredients, setSelectedIngredients] = useState(
     () => new Set(recipe.ingredients.map((x) => x.id)),
   );
@@ -219,10 +224,21 @@ function RecipeDetail({
   const [adding, setAdding] = useState(false);
   const [routeError, setRouteError] = useState('');
   useEffect(() => {
-    const stop = listenStores(householdId, setStores);
-    void getRememberedStores(householdId).then(setRememberedStores);
-    return stop;
-  }, [householdId]);
+    const stopStores = listenStores(householdId, setStores);
+    if (!uid) return stopStores;
+    const stopPrefs = listenMemberPrefs(householdId, uid, (prefs) =>
+      setDefaultStoreId(prefs.defaultStoreId),
+    );
+    void getStoreRules(householdId, uid).then(setRules);
+    return () => {
+      stopStores();
+      stopPrefs();
+    };
+  }, [householdId, uid]);
+  const routing: StoreRouting = useMemo(
+    () => ({ ...rules, defaultStoreId, stores }),
+    [rules, defaultStoreId, stores],
+  );
   const factor = recipe.baseServings ? servings / recipe.baseServings : 1;
   return (
     <article className="recipe-detail">
@@ -314,18 +330,8 @@ function RecipeDetail({
           <div className="send-to-store">
             <label>
               Send selected to
-              <select
-                value={storeId}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  setStoreId(next);
-                  if (next !== 'remembered') {
-                    setLastStoreId(next);
-                    localStorage.setItem('forkast:last-store', next);
-                  }
-                }}
-              >
-                <option value="remembered">Remembered stores</option>
+              <select value={storeId} onChange={(e) => setStoreId(e.target.value)}>
+                <option value="remembered">Your usual stores</option>
                 {stores.map((store) => (
                   <option value={store.id} key={store.id}>
                     {store.name}
@@ -335,11 +341,9 @@ function RecipeDetail({
             </label>
             {storeId === 'remembered' && (
               <p>
-                Known ingredients return to their usual list. New ones use{' '}
-                {stores.find((store) => store.id === lastStoreId)?.name ||
-                  stores[0]?.name ||
-                  'your first store'}
-                .
+                Ingredients you have bought before return to the store you buy them at.
+                New ones go to {fallbackStore(routing)?.name || 'your first store'},
+                which you can change in Settings.
               </p>
             )}
             <button
@@ -358,11 +362,9 @@ function RecipeDetail({
                     const normalizedName = normalizedIngredientName(scaled.name);
                     const destination =
                       storeId === 'remembered'
-                        ? rememberedStores.get(normalizedName) ||
-                          (stores.some((store) => store.id === lastStoreId)
-                            ? lastStoreId
-                            : stores[0].id)
+                        ? routeIngredient(normalizedName, routing)?.storeId
                         : storeId;
+                    if (!destination) continue;
                     await addIngredientToShopping(householdId, {
                       name: scaled.name,
                       normalizedName,
@@ -378,9 +380,10 @@ function RecipeDetail({
                     });
                     await rememberStore(householdId, scaled.name, destination);
                     routed.set(destination, (routed.get(destination) || 0) + 1);
-                    setRememberedStores((current) =>
-                      new Map(current).set(normalizedName, destination),
-                    );
+                    setRules((current) => ({
+                      ...current,
+                      mine: new Map(current.mine).set(normalizedName, destination),
+                    }));
                   }
                   setTransferReceipt(
                     [...routed].map(([destination, count]) => ({

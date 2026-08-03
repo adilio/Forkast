@@ -1,10 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { useAuth } from '../lib/auth';
 import { callFunction } from '../lib/api';
-import { exportHousehold } from '../lib/data';
+import {
+  clearMyStoreRules,
+  exportHousehold,
+  getStoreRules,
+  listenMemberPrefs,
+  listenStores,
+  setDefaultStore,
+} from '../lib/data';
 import { ThemeToggle } from '../components/ThemeToggle';
+import type { Store } from '../lib/types';
 function download(name: string, data: unknown, type = 'application/json') {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type });
   const a = document.createElement('a');
@@ -18,7 +26,23 @@ export default function SettingsPage() {
   const [invite, setInvite] = useState('');
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState<'invite' | 'export' | ''>('');
+  const [busy, setBusy] = useState<'invite' | 'export' | 'rules' | ''>('');
+  const uid = user?.uid ?? '';
+  const [stores, setStores] = useState<Store[]>([]);
+  const [defaultStoreId, setDefaultStoreId] = useState<string | null>(null);
+  const [myRuleCount, setMyRuleCount] = useState<number | null>(null);
+  useEffect(() => {
+    if (!householdId || !uid) return;
+    const stopStores = listenStores(householdId, setStores);
+    const stopPrefs = listenMemberPrefs(householdId, uid, (prefs) =>
+      setDefaultStoreId(prefs.defaultStoreId),
+    );
+    void getStoreRules(householdId, uid).then(({ mine }) => setMyRuleCount(mine.size));
+    return () => {
+      stopStores();
+      stopPrefs();
+    };
+  }, [householdId, uid]);
   async function makeInvite() {
     setBusy('invite');
     setError('');
@@ -97,6 +121,64 @@ export default function SettingsPage() {
           this device only.
         </p>
         <ThemeToggle />
+      </section>
+      <section>
+        <h2>Your stores</h2>
+        <p>
+          The list is shared with your household, but where things are bought is yours.
+          New ingredients you have not bought before go to your default store, and the
+          shopping tab opens there.
+        </p>
+        <label className="field-label" htmlFor="default-store">
+          Your default store
+        </label>
+        <select
+          id="default-store"
+          value={defaultStoreId ?? stores[0]?.id ?? ''}
+          disabled={!stores.length}
+          onChange={(event) => {
+            const next = event.target.value;
+            setDefaultStoreId(next);
+            void setDefaultStore(householdId!, uid, next).catch(() =>
+              setError('That store could not be saved. Try again when connected.'),
+            );
+          }}
+        >
+          {stores.map((store) => (
+            <option key={store.id} value={store.id}>
+              {store.name}
+            </option>
+          ))}
+        </select>
+        <p>
+          {myRuleCount === null
+            ? 'Checking which ingredients you have routed…'
+            : myRuleCount === 0
+              ? 'You have not routed any ingredients yet. Moving an item between stores teaches Forkast where you buy it.'
+              : `Forkast remembers where you buy ${myRuleCount} ${
+                  myRuleCount === 1 ? 'ingredient' : 'ingredients'
+                }. Clearing this affects only your routing, not anyone else's.`}
+        </p>
+        <button
+          className="button button--outline"
+          disabled={Boolean(busy) || !myRuleCount}
+          onClick={async () => {
+            if (!confirm('Forget where you buy every ingredient?')) return;
+            setBusy('rules');
+            setError('');
+            try {
+              const cleared = await clearMyStoreRules(householdId!, uid);
+              setMyRuleCount(0);
+              setStatus(`Forgot ${cleared} of your ingredient routings.`);
+            } catch {
+              setError('Your routing could not be cleared. Try again when connected.');
+            } finally {
+              setBusy('');
+            }
+          }}
+        >
+          {busy === 'rules' ? 'Clearing…' : 'Forget my ingredient routing'}
+        </button>
       </section>
       <section>
         <h2>Invite your spouse</h2>

@@ -146,6 +146,67 @@ describe('household isolation', () => {
       setDoc(doc(db, 'households/home/shoppingItems/three'), { ...base, admin: true }),
     );
   });
+  it('keeps store preferences personal', async () => {
+    const alice = env.authenticatedContext('alice').firestore();
+    const bob = env.authenticatedContext('bob').firestore();
+    const prefs = {
+      defaultStoreId: 'city-market',
+      updatedAt: new Date(),
+      updatedBy: 'alice',
+    };
+    const rule = {
+      displayName: 'Milk',
+      storeId: 'city-market',
+      updatedAt: new Date(),
+      updatedBy: 'alice',
+    };
+
+    await assertSucceeds(
+      setDoc(doc(alice, 'households/home/memberPrefs/alice'), prefs),
+    );
+    await assertSucceeds(
+      setDoc(doc(alice, 'households/home/memberPrefs/alice/storeRules/milk'), rule),
+    );
+
+    // Bob shares the list and may read how Alice routes, but never write it.
+    await assertSucceeds(getDoc(doc(bob, 'households/home/memberPrefs/alice')));
+    await assertFails(
+      setDoc(doc(bob, 'households/home/memberPrefs/alice'), {
+        ...prefs,
+        updatedBy: 'bob',
+      }),
+    );
+    await assertFails(
+      setDoc(doc(bob, 'households/home/memberPrefs/alice/storeRules/milk'), {
+        ...rule,
+        updatedBy: 'bob',
+      }),
+    );
+
+    // A store that does not exist, and a stranger, are both refused.
+    await assertFails(
+      setDoc(doc(alice, 'households/home/memberPrefs/alice'), {
+        ...prefs,
+        defaultStoreId: 'unknown',
+      }),
+    );
+    await assertFails(
+      getDoc(
+        doc(
+          env.authenticatedContext('carol').firestore(),
+          'households/home/memberPrefs/alice',
+        ),
+      ),
+    );
+
+    // The pre-split household baseline is readable but frozen.
+    await assertSucceeds(
+      getDoc(doc(alice, 'households/home/ingredientStoreRules/milk')),
+    );
+    await assertFails(
+      setDoc(doc(alice, 'households/home/ingredientStoreRules/milk'), rule),
+    );
+  });
   it('blocks role escalation', async () => {
     await assertFails(
       setDoc(

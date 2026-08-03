@@ -30,6 +30,19 @@ export const recipeSchema = z.object({
 export type Recipe = z.infer<typeof recipeSchema>;
 
 export type Store = { id: string; name: string; sortOrder: number };
+
+/** A person in the household. `displayName` is written server-side at join. */
+export type Member = {
+  id: string;
+  displayName: string;
+  role: 'owner' | 'member';
+};
+
+/**
+ * One person's shopping habits. The list is shared; where things are bought is
+ * not, so this is keyed by uid and only its owner may write it.
+ */
+export type MemberPrefs = { defaultStoreId: string | null };
 export type ShoppingItem = {
   id: string;
   name: string;
@@ -43,4 +56,9 @@ export type ShoppingItem = {
   manual: boolean;
   sourceRecipeId: string | null;
   sourceIngredientId: string | null;
+  /** Server-populated on write; the list uses it to say who added an item. */
+  createdBy: string;
 };
+
+/** What a caller supplies. Identity and timestamps are stamped on write. */
+export type NewShoppingItem = Omit<ShoppingItem, 'id' | 'createdBy'>;

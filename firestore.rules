@@ -52,13 +52,35 @@ service cloud.firestore {
         allow delete: if member(householdId);
       }
 
+      // The pre-split household baseline. Still readable so nobody's existing
+      // routing was discarded, but no longer writable from the client: every
+      // new rule belongs to one person, under memberPrefs below.
       match /ingredientStoreRules/{ingredientKey} {
         allow read: if member(householdId);
+        allow write: if false;
+      }
+
+      // One person's shopping habits. Any member may read them — the household
+      // shares a list and seeing why an ingredient routed somewhere is useful —
+      // but only their owner may write them.
+      match /memberPrefs/{memberUid} {
+        allow read: if member(householdId);
         allow create, update: if member(householdId)
-          && only(['displayName','storeId','updatedAt','updatedBy'])
+          && request.auth.uid == memberUid
+          && only(['defaultStoreId','updatedAt','updatedBy'])
           && request.resource.data.updatedBy == request.auth.uid
-          && exists(/databases/$(database)/documents/households/$(householdId)/stores/$(request.resource.data.storeId));
-        allow delete: if member(householdId);
+          && exists(/databases/$(database)/documents/households/$(householdId)/stores/$(request.resource.data.defaultStoreId));
+        allow delete: if false;
+
+        match /storeRules/{ingredientKey} {
+          allow read: if member(householdId);
+          allow create, update: if member(householdId)
+            && request.auth.uid == memberUid
+            && only(['displayName','storeId','updatedAt','updatedBy'])
+            && request.resource.data.updatedBy == request.auth.uid
+            && exists(/databases/$(database)/documents/households/$(householdId)/stores/$(request.resource.data.storeId));
+          allow delete: if member(householdId) && request.auth.uid == memberUid;
+        }
       }
 
       match /shoppingItems/{itemId} {

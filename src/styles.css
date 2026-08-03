@@ -160,6 +160,20 @@ svg {
   transition: none !important;
 }
 
+/* A visible label above a standalone control, per the no-placeholder-only
+   rule in DESIGN.md. */
+.field-label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-weight: 700;
+}
+.settings-page select {
+  width: 100%;
+  max-width: 20rem;
+  min-height: 3.25rem;
+  padding: 0.75rem 0.9rem;
+}
+
 /* ===== Appearance control ================================================
    A sunk track holding one raised segment. The inputs are real radios, so
    arrow keys, grouping, and checked state come from the browser; the labels
