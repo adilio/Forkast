@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'wouter';
+import { CatalogRows } from '../components/CatalogRows';
 import { RecipeForm } from '../components/RecipeForm';
+import { catalog } from '../data/catalog';
+import { spreadBy, weekIndex, weeklyPicks } from '../lib/catalogWeek';
 import { emptyRecipe } from '../lib/recipes';
+import { useCatalogAdder } from '../lib/useCatalogAdder';
 import { useAuth } from '../lib/auth';
 import {
   addIngredientToShopping,
@@ -117,6 +121,7 @@ export default function RecipesPage() {
         </div>
       )}
       {error && <p className="form-message">{error}</p>}
+      {!search && <RecipesOfTheWeek householdId={householdId} />}
       <div className="recipe-index">
         {filtered.map((recipe) => (
           <article className="recipe-row" key={recipe.id}>
@@ -187,6 +192,9 @@ export default function RecipesPage() {
               <Link className="button button--outline" href="/import-csv">
                 Import Plan to Eat CSV
               </Link>
+              <Link className="button button--outline" href="/catalog">
+                Browse starter recipes
+              </Link>
             </div>
           )}
         </div>
@@ -194,6 +202,53 @@ export default function RecipesPage() {
     </section>
   );
 }
+/**
+ * Three catalog recipes chosen by the week rather than by chance, so both
+ * people in a household see the same suggestions and the section is quiet
+ * enough to sit above someone's own recipe book without competing with it.
+ */
+function RecipesOfTheWeek({ householdId }: { householdId: string | null }) {
+  const { add, isSaved, addingIds, progress, failures } = useCatalogAdder(householdId);
+  const picks = useMemo(
+    () =>
+      weeklyPicks(
+        spreadBy(catalog, (entry) => entry.siteName),
+        weekIndex(new Date()),
+        3,
+      ),
+    [],
+  );
+  return (
+    <section className="week-picks">
+      <header>
+        <div>
+          <p className="kicker">Recipes of the week</p>
+          <p>Three from the starter catalog, changing each Monday.</p>
+        </div>
+        <Link className="text-button" href="/catalog">
+          Browse all {catalog.length}
+        </Link>
+      </header>
+      <CatalogRows
+        entries={picks}
+        isSaved={isSaved}
+        addingIds={addingIds}
+        onAdd={(entry) => void add([entry])}
+      />
+      {progress && (
+        <p className="connection-state" role="status">
+          {progress}
+        </p>
+      )}
+      {failures.map((failure) => (
+        <p className="form-message" role="alert" key={failure.entry.id}>
+          {failure.entry.title}: {failure.message}
+        </p>
+      ))}
+    </section>
+  );
+}
+
 function RecipeDetail({
   householdId,
   recipe,

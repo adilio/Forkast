@@ -793,6 +793,95 @@ input:hover {
   gap: 0.75rem;
   margin-top: 1.25rem;
 }
+/* ===== Starter catalog ===================================================
+   Suggestions, not the household's own book. The rows are the same ticket
+   rhythm as the recipe index but carry no image and no star, so a catalog
+   entry never reads as something already saved. */
+.week-picks {
+  padding: 1.25rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.week-picks > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.5rem;
+}
+.week-picks > header p:last-child {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+.week-picks .text-button {
+  flex: none;
+}
+.catalog-filter {
+  flex: 1;
+}
+.catalog-filter > span {
+  font-weight: 700;
+}
+.catalog-filter select {
+  width: 100%;
+  max-width: 22rem;
+  min-height: 3.25rem;
+  padding: 0.75rem 0.9rem;
+}
+.catalog-index {
+  display: grid;
+}
+.catalog-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 4.25rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.catalog-row:last-child {
+  border-bottom: 0;
+}
+.catalog-row__copy {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+.catalog-row__copy strong {
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+.catalog-row__copy > span {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+.catalog-row .button {
+  flex: none;
+}
+.catalog-row__saved {
+  flex: none;
+  color: var(--action-hover);
+  font-size: 0.8125rem;
+  font-weight: 750;
+}
+.catalog-failures {
+  padding: 0.75rem 0;
+}
+.catalog-failures summary {
+  padding: 0.5rem 0;
+  color: var(--danger);
+  font-weight: 700;
+  cursor: pointer;
+}
+.catalog-failures ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+.catalog-failures li {
+  padding: 0.35rem 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
 .recipe-form {
   display: grid;
   gap: 1.25rem;
@@ -1280,6 +1369,14 @@ select {
   }
   .recipe-row {
     grid-template-columns: 3rem minmax(0, 1fr);
+  }
+  .week-picks > header {
+    align-items: start;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .catalog-filter select {
+    max-width: none;
   }
   .recipe-row__servings {
     display: none;

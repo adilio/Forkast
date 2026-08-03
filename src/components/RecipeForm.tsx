@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { parseIngredient } from '../lib/ingredients';
+import { sourceHostOf } from '../lib/recipes';
 import type { Recipe } from '../lib/types';
 
 export function RecipeForm({
@@ -70,15 +71,7 @@ export function RecipeForm({
           .split(/\n\s*\n|\n(?=\d+[.)]\s)/)
           .map((x) => x.replace(/^\d+[.)]\s*/, '').trim())
           .filter(Boolean),
-        sourceHost: (() => {
-          try {
-            return recipe.sourceUrl
-              ? new URL(recipe.sourceUrl).hostname.replace(/^www\./, '')
-              : '';
-          } catch {
-            return '';
-          }
-        })(),
+        sourceHost: sourceHostOf(recipe.sourceUrl),
       });
       localStorage.removeItem(draftKey);
     } catch {

@@ -1,7 +1,7 @@
 import Papa from 'papaparse';
 import { parseIngredient, normalizedIngredientName } from './ingredients';
 import type { Recipe } from './types';
-import { recipeDuplicateKey } from './recipes';
+import { recipeDuplicateKey, sourceHostOf } from './recipes';
 
 const aliases: Record<string, string[]> = {
   title: ['title', 'recipe title', 'name'],
@@ -62,13 +62,7 @@ export function parsePlanToEatCsv(csv: string): CsvPreview {
       title,
       description: get('description'),
       sourceUrl,
-      sourceHost: (() => {
-        try {
-          return sourceUrl ? new URL(sourceUrl).hostname.replace(/^www\./, '') : '';
-        } catch {
-          return '';
-        }
-      })(),
+      sourceHost: sourceHostOf(sourceUrl),
       imageUrl: get('imageUrl'),
       baseServings: Number(get('servings').match(/[\d.]+/)?.[0]) || null,
       ingredients: get('ingredients')

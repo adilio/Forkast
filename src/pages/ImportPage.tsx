@@ -5,21 +5,8 @@ import { Icon } from '../components/Icon';
 import { callFunction } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { saveRecipe } from '../lib/data';
-import { parseIngredient } from '../lib/ingredients';
-import { emptyRecipe } from '../lib/recipes';
+import { draftToRecipe, emptyRecipe, type ImportedDraft } from '../lib/recipes';
 import type { Recipe } from '../lib/types';
-
-type Draft = {
-  title: string;
-  description: string;
-  sourceUrl: string;
-  imageUrl: string;
-  baseServings: number | null;
-  ingredientLines: string[];
-  instructions: string[];
-  notes: string;
-  tags: string[];
-};
 export default function ImportPage() {
   const { householdId } = useAuth();
   const params = new URLSearchParams(window.location.search);
@@ -40,20 +27,10 @@ export default function ImportPage() {
     setBusy(true);
     setError('');
     try {
-      const result = await callFunction<{ recipe: Draft }>('import-recipe', { url });
-      const d = result.recipe;
-      setDraft({
-        ...emptyRecipe(),
-        title: d.title,
-        description: d.description,
-        sourceUrl: d.sourceUrl,
-        imageUrl: d.imageUrl,
-        baseServings: d.baseServings,
-        ingredients: d.ingredientLines.map((x) => parseIngredient(x)),
-        instructions: d.instructions,
-        notes: d.notes,
-        tags: d.tags,
+      const result = await callFunction<{ recipe: ImportedDraft }>('import-recipe', {
+        url,
       });
+      setDraft(draftToRecipe(result.recipe));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'This recipe could not be imported.');
       setDraft({ ...emptyRecipe(), sourceUrl: url });
