@@ -24,13 +24,16 @@ export default async (request: Request) => {
       displayName: user.name || '',
       joinedAt: FieldValue.serverTimestamp(),
     });
-    batch.set(adminDb.doc(`households/${householdId}/stores/city-market`), {
-      name: 'City Market',
+    // One neutral store, not this household's two. Nothing works without at
+    // least one — an ingredient has nowhere to go — but which shops a household
+    // uses is theirs to say, and Settings is where they say it.
+    batch.set(adminDb.doc(`households/${householdId}/stores/${randomUUID()}`), {
+      name: 'Groceries',
       sortOrder: 0,
-    });
-    batch.set(adminDb.doc(`households/${householdId}/stores/costco`), {
-      name: 'Costco',
-      sortOrder: 1,
+      createdAt: FieldValue.serverTimestamp(),
+      createdBy: user.uid,
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedBy: user.uid,
     });
     batch.set(adminDb.doc(`users/${user.uid}`), {
       displayName: user.name || '',

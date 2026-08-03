@@ -46,7 +46,7 @@ the users to maintain a formal ingredient taxonomy.
   Store.
 - iOS does not provide the PWA Web Share Target API, so website capture uses a
   user-installed “Save to Forkast” Shortcut that opens Forkast's import route.
-- City Market and Costco are the two initial stores.
+- Each household defines its own stores. This one uses City Market and Costco.
 - The household's existing recipes come from a Plan to Eat CSV export.
 - The grocery list must remain readable and editable with weak or absent mobile
   service, then synchronize when the app returns online.

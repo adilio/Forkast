@@ -12,6 +12,7 @@ import {
   setDefaultStore,
 } from '../lib/data';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { StoreManager } from '../components/StoreManager';
 import type { Store } from '../lib/types';
 function download(name: string, data: unknown, type = 'application/json') {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type });
@@ -122,8 +123,9 @@ export default function SettingsPage() {
         </p>
         <ThemeToggle />
       </section>
+      <section>{householdId && <StoreManager householdId={householdId} />}</section>
       <section>
-        <h2>Your stores</h2>
+        <h2>Where your ingredients go</h2>
         <p>
           The list is shared with your household, but where things are bought is yours.
           New ingredients you have not bought before go to your default store, and the

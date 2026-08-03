@@ -6,7 +6,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
 let env: RulesTestEnvironment;
 beforeAll(async () => {
@@ -144,6 +144,91 @@ describe('household isolation', () => {
     );
     await assertFails(
       setDoc(doc(db, 'households/home/shoppingItems/three'), { ...base, admin: true }),
+    );
+  });
+  it('lets any member define, rename, reorder, and remove stores', async () => {
+    const bob = env.authenticatedContext('bob').firestore();
+    const store = {
+      name: 'The bakery',
+      sortOrder: 1,
+      createdAt: new Date(),
+      createdBy: 'bob',
+      updatedAt: new Date(),
+      updatedBy: 'bob',
+    };
+    // A member, not just the owner: which shops a household uses is not the
+    // owner's decision to make on everyone's behalf.
+    await assertSucceeds(setDoc(doc(bob, 'households/home/stores/bakery'), store));
+    await assertSucceeds(
+      updateDoc(doc(bob, 'households/home/stores/bakery'), {
+        name: 'The good bakery',
+        updatedAt: new Date(),
+        updatedBy: 'bob',
+      }),
+    );
+    await assertSucceeds(
+      updateDoc(doc(bob, 'households/home/stores/city-market'), {
+        sortOrder: 5,
+        updatedAt: new Date(),
+        updatedBy: 'bob',
+      }),
+    );
+    await assertSucceeds(deleteDoc(doc(bob, 'households/home/stores/bakery')));
+  });
+  it('rejects malformed, impersonated, and cross-household store writes', async () => {
+    const alice = env.authenticatedContext('alice').firestore();
+    const valid = {
+      name: 'The bakery',
+      sortOrder: 1,
+      createdAt: new Date(),
+      createdBy: 'alice',
+      updatedAt: new Date(),
+      updatedBy: 'alice',
+    };
+    await assertFails(
+      setDoc(doc(alice, 'households/home/stores/blank'), { ...valid, name: '' }),
+    );
+    await assertFails(
+      setDoc(doc(alice, 'households/home/stores/long'), {
+        ...valid,
+        name: 'x'.repeat(61),
+      }),
+    );
+    await assertFails(
+      setDoc(doc(alice, 'households/home/stores/unsorted'), {
+        ...valid,
+        sortOrder: 'first',
+      }),
+    );
+    await assertFails(
+      setDoc(doc(alice, 'households/home/stores/extra'), { ...valid, admin: true }),
+    );
+    // updatedBy is the audit trail on a shared list; it may not name someone else.
+    await assertFails(
+      setDoc(doc(alice, 'households/home/stores/spoofed'), {
+        ...valid,
+        updatedBy: 'bob',
+      }),
+    );
+    await assertFails(
+      setDoc(doc(alice, 'households/other/stores/theirs'), {
+        ...valid,
+        createdBy: 'alice',
+      }),
+    );
+    await assertFails(
+      deleteDoc(
+        doc(
+          env.authenticatedContext('carol').firestore(),
+          'households/home/stores/city-market',
+        ),
+      ),
+    );
+    await assertFails(
+      setDoc(
+        doc(env.unauthenticatedContext().firestore(), 'households/home/stores/x'),
+        valid,
+      ),
     );
   });
   it('keeps store preferences personal', async () => {

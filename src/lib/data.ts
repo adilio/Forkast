@@ -91,6 +91,84 @@ export function listenStores(
     onError,
   );
 }
+/**
+ * Adds a store at the end of the list. Any member may: which shops a household
+ * uses is not the owner's decision to make for everyone.
+ */
+export async function createStore(householdId: string, name: string, after: Store[]) {
+  const ref = doc(path(householdId, 'stores'));
+  await setDoc(ref, {
+    name: name.trim().slice(0, 60),
+    sortOrder: Math.max(-1, ...after.map((store) => store.sortOrder)) + 1,
+    createdAt: serverTimestamp(),
+    createdBy: actor(),
+    updatedAt: serverTimestamp(),
+    updatedBy: actor(),
+  });
+  return ref.id;
+}
+
+/** Renaming is safe at any time: items reference a store by id, never by name. */
+export async function renameStore(householdId: string, id: string, name: string) {
+  await updateDoc(doc(path(householdId, 'stores'), id), {
+    name: name.trim().slice(0, 60),
+    updatedAt: serverTimestamp(),
+    updatedBy: actor(),
+  });
+}
+
+/**
+ * Rewrites the whole order as consecutive positions rather than swapping two
+ * values, so an order that drifted — two stores sharing a position, or a gap
+ * left by a delete — comes back consistent instead of staying subtly wrong.
+ */
+export async function reorderStores(householdId: string, ordered: Store[]) {
+  const batch = writeBatch(db!);
+  ordered.forEach((store, index) => {
+    batch.update(doc(path(householdId, 'stores'), store.id), {
+      sortOrder: index,
+      updatedAt: serverTimestamp(),
+      updatedBy: actor(),
+    });
+  });
+  await batch.commit();
+}
+
+/**
+ * Removes a store, moving everything on its list to `moveToId` first.
+ *
+ * The move is not a courtesy. An item pointing at a store that no longer exists
+ * is invisible — the shopping page shows one store at a time — and also frozen,
+ * because every item write checks that its store exists, so it cannot even be
+ * unchecked or reassigned afterwards. Both writes go in one batch: either the
+ * store is gone and its items moved, or nothing happened.
+ *
+ * Ingredient routing rules and default-store preferences are deliberately left
+ * alone. They may only be written by the person who owns them, so this could
+ * not fix everyone's anyway, and routeIngredient already steps over a rule
+ * pointing at a store that no longer exists.
+ */
+export async function deleteStore(
+  householdId: string,
+  id: string,
+  moveToId: string,
+  items: ShoppingItem[],
+) {
+  if (id === moveToId) throw new Error('Pick a different store to move items to.');
+  const moving = items.filter((item) => item.storeId === id);
+  const batch = writeBatch(db!);
+  for (const item of moving) {
+    batch.update(doc(path(householdId, 'shoppingItems'), item.id), {
+      storeId: moveToId,
+      updatedAt: serverTimestamp(),
+      updatedBy: actor(),
+    });
+  }
+  batch.delete(doc(path(householdId, 'stores'), id));
+  await batch.commit();
+  return moving.length;
+}
+
 export function listenShopping(
   householdId: string,
   onData: (rows: ShoppingItem[]) => void,

@@ -25,9 +25,27 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
+      // Any member may shape the store list. Which shops a household uses is
+      // not an owner's decision to make on everyone's behalf, and a household
+      // stuck with the two it was seeded with was the original complaint.
       match /stores/{storeId} {
         allow read: if member(householdId);
-        allow write: if false;
+        function validStore() {
+          return only(['name','sortOrder','createdAt','createdBy','updatedAt','updatedBy'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 60
+          && request.resource.data.sortOrder is number
+          && request.resource.data.updatedBy == request.auth.uid;
+        }
+        allow create: if member(householdId)
+          && validStore()
+          && request.resource.data.createdBy == request.auth.uid;
+        allow update: if member(householdId) && validStore();
+        // Shopping items pointing at a deleted store would be invisible on the
+        // list and, because every item write checks its store exists, no longer
+        // editable either. The client moves them first; see deleteStore.
+        allow delete: if member(householdId);
       }
 
       match /recipes/{recipeId} {

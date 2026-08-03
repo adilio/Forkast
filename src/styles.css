@@ -1328,6 +1328,142 @@ select {
 .settings-page .form-message {
   margin-top: 1rem;
 }
+
+/* ===== Store manager =====================================================
+   Ticket rows, like the shopping list they configure: a name you can type
+   straight into, its load, and a clearly separated set of trailing actions.
+   The removal question opens inside its own row rather than as a dialog, so
+   the store being removed stays visible while you answer. */
+.store-manager {
+  margin: 1.25rem 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+.store-manager__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--line);
+}
+/* Wide enough to read a real shop name, and the part that gives way first
+   when the row wraps at 320px. */
+.store-manager__main {
+  flex: 1 1 11rem;
+  min-width: 0;
+}
+.store-manager__main input {
+  width: 100%;
+  min-height: 3rem;
+  margin-top: 0;
+  font-weight: 700;
+}
+.store-manager__main small {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+.store-manager__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+/* A quiet text button still has to be hit with a thumb: DESIGN.md's 44px
+   floor applies to it exactly as it does to the reorder controls. */
+.store-manager__actions .text-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0 0.5rem;
+}
+.icon-button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 2.75rem;
+  min-height: 2.75rem;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-size: 1.125rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color 180ms ease-out,
+    border-color 180ms ease-out;
+}
+.icon-button:hover:not(:disabled) {
+  background: var(--selected);
+  border-color: var(--action);
+}
+.icon-button:disabled {
+  color: var(--disabled-ink);
+  cursor: not-allowed;
+}
+/* The confirmation takes the whole row width once the row wraps, so the
+   question is never squeezed beside the controls that raised it. */
+.store-manager__confirm {
+  flex: 1 0 100%;
+  margin-top: 0.5rem;
+  padding: 1rem;
+  background: var(--danger-soft);
+  border-radius: 7px;
+}
+.store-manager__confirm p {
+  margin: 0 0 0.75rem;
+  max-width: 62ch;
+  color: var(--ink);
+  line-height: 1.6;
+}
+.store-manager__confirm select {
+  width: 100%;
+  max-width: 20rem;
+  min-height: 3rem;
+  padding: 0.6rem 0.9rem;
+}
+.store-manager__confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+/* Isolated danger, per DESIGN.md: the destructive action is legible as a
+   button but never wears the action green. */
+.button--danger {
+  color: var(--danger);
+  background: transparent;
+  border-color: var(--danger);
+}
+.button--danger:hover:not(:disabled) {
+  color: var(--on-inverse);
+  background: var(--danger);
+  border-color: var(--danger);
+}
+.button--danger:disabled {
+  color: var(--disabled-ink);
+  border-color: var(--line);
+  cursor: not-allowed;
+}
+.store-manager__note {
+  margin-top: 0.75rem;
+}
+.store-manager__add {
+  margin-top: 1.5rem;
+}
+.store-manager__add > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.store-manager__add input {
+  flex: 1 1 12rem;
+  min-width: 0;
+  margin-top: 0;
+}
 @keyframes skeleton {
   to {
     background-position: -150% 0;

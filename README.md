@@ -2,7 +2,8 @@
 
 Forkast is a private household recipe manager and store-aware shopping PWA. It
 captures clean recipes from ordinary websites, scales ingredient quantities,
-and keeps City Market and Costco lists synchronized through Firebase.
+and keeps a list per store — each household defines its own — synchronized
+through Firebase.
 
 ## Local development
 

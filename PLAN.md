@@ -9,12 +9,7 @@ fresh task needs in order to act correctly.
 
 ## 1. Next up
 
-**1. Open-ended stores.** Stores are seeded once by `bootstrap-household.ts` and
-write-locked in the rules, so a household is stuck with the two it was given.
-Any household must be able to define, rename, reorder, and remove its own.
-Section 9 holds the invariants.
-
-**2. The meal plan calendar** — designed in Section 9, not started.
+**1. The meal plan calendar** — designed in Section 9, not started.
 
 Manual owner-run acceptance checks — a second Google account, real iPhone
 install and capture, a live week of cooking — were removed from this queue on
@@ -36,8 +31,9 @@ addresses are deliberately not recorded here.
   Storage, Analytics, Gemini, and Firebase Hosting are intentionally disabled.
 - **Google sign-in works in production** and is the only method. Email/password
   was disabled on 2026-08-03 and no password credential exists.
-- One household, owned by the owner's account, City Market and Costco seeded.
-  **It is live data — do not delete it.**
+- One household, owned by the owner's account, with City Market and Costco.
+  **It is live data — do not delete it.** New households are seeded with one
+  neutral store instead; stores are now editable in Settings.
 - The service-account key lives outside the repository at
   `/Users/adil/Code/forkast-4dl-firebase-adminsdk-fbsvc-1b9b26cd84.json`, mode
   `0600`. Never commit it. In production it is the Netlify secret
@@ -110,7 +106,7 @@ one-time detector for a handoff; its passes are under `.impeccable/`.
 
 Forkast replaces the parts of Plan to Eat this household uses: save a clean
 recipe from a website on an iPhone in a few taps, favourite it, scale servings,
-keep synchronised City Market and Costco lists with remembered
+keep synchronised per-store lists with remembered
 ingredient-to-store routing, and import the existing library from a CSV.
 Supporting essentials: title and ingredient search, manual CRUD, adding recipes
 or selected ingredients to lists, arbitrary grocery items, collaborative checking
@@ -343,6 +339,30 @@ reach at 320px. Three picks appear on the recipe book each week.
   agree; `spreadBy` interleaves sites first, or a week hands out three recipes
   from one publisher.
 
+**Household-defined stores.** Any member may add, rename, reorder, and remove
+stores; the rules validate name and `sortOrder` and are no longer write-locked.
+Which shops a household uses is not the owner's decision to make on everyone's
+behalf, and the seed is now one neutral "Groceries" rather than this household's
+two — the live household's own stores were left untouched.
+
+- **Removal moves items, it does not orphan them.** A shopping item pointing at
+  a deleted store is invisible — the list shows one store at a time — and also
+  frozen, because every item write checks that its store exists, so it cannot
+  even be unchecked afterwards. `deleteStore` moves the items and deletes the
+  store in one batch, and the UI asks *where they go* rather than "are you
+  sure". Do not add a delete path that skips this.
+- **The last store cannot be removed.** With none, nothing can be added to a
+  list and routing has nowhere to send an ingredient.
+- Ingredient rules and default-store preferences pointing at a removed store are
+  deliberately left alone: only their owner may write them, so this could not
+  fix everyone's anyway, and `routeIngredient` already steps over a rule naming
+  a store that no longer exists.
+- Renaming is safe at any time — items reference a store by id, never by name.
+  Duplicate names are refused at the point of naming, because every "which
+  store?" control becomes a guess otherwise.
+- Reordering rewrites the whole order as consecutive positions rather than
+  swapping two values, so an order that drifted comes back consistent.
+
 **Meal plan calendar — designed, not started.** A week view with tap-to-place,
 not drag-and-drop:
 
@@ -414,6 +434,14 @@ await auth.signInWithCredential(
 Window resizing through the browser tooling did not work here; narrow widths were
 measured by driving the same signed-in flow through Playwright at 390 and 320px
 and asserting `scrollWidth === innerWidth`.
+
+Two things cost time when driving a signed-in screen this way. The auth emulator
+mints its **own** uid and ignores the `sub` in the credential above, so seed the
+household around the uid the sign-in returns rather than one guessed in advance.
+And `waitUntil: 'networkidle'` never settles, because Firestore holds a realtime
+connection open — wait for a heading instead. Seeding straight into the Firestore
+emulator over its REST API with `Authorization: Bearer owner` avoids needing the
+Netlify Functions layer at all for screens that only touch Firestore.
 
 ### Operating production without a browser
 
