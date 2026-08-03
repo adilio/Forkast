@@ -63,7 +63,10 @@ export function parseIngredient(
   const raw = rawText.trim();
   const match = raw.match(
     new RegExp(
-      `^(?:(\\d+)\\s+)?(\\d+(?:\\.\\d+)?|\\d+\\/\\d+|[¼½¾⅓⅔⅛⅜⅝⅞])?(?:\\s*[-–]\\s*(\\d+(?:\\.\\d+)?|\\d+\\/\\d+|[¼½¾⅓⅔⅛⅜⅝⅞]))?\\s*(${units.join('|')})?\\s*(.*)$`,
+      // The unit must end the word it starts, and may carry a trailing period:
+      // without that, "1 garlic clove" reads as one gram of "arlic clove", and
+      // "2 tbsp. dill" keeps the period at the front of the name.
+      `^(?:(\\d+)\\s+)?(\\d+(?:\\.\\d+)?|\\d+\\/\\d+|[¼½¾⅓⅔⅛⅜⅝⅞])?(?:\\s*[-–]\\s*(\\d+(?:\\.\\d+)?|\\d+\\/\\d+|[¼½¾⅓⅔⅛⅜⅝⅞]))?\\s*(?:(${units.join('|')})\\.?(?=\\s|$)\\s*)?(.*)$`,
       'i',
     ),
   );

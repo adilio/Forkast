@@ -12,6 +12,12 @@ describe('ingredient quantities', () => {
     ['1 ½ cups milk', 1.5, 'cups', 'milk'],
     ['¾ tsp salt', 0.75, 'tsp', 'salt'],
     ['to taste', null, null, 'to taste'],
+    // A unit only counts when it is a whole word: "garlic" is not grams.
+    ['1 garlic clove, minced', 1, null, 'garlic clove'],
+    ['2 large eggs', 2, null, 'large eggs'],
+    ['1 lb ground beef', 1, 'lb', 'ground beef'],
+    // Publishers often abbreviate with a period; it belongs to the unit.
+    ['2 tbsp. finely chopped dill', 2, 'tbsp', 'finely chopped dill'],
   ])('parses %s', (raw, q, unit, name) => {
     const parsed = parseIngredient(raw, 'x');
     expect(parsed).toMatchObject({ quantity: q, unit, name });
