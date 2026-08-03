@@ -640,11 +640,8 @@ inventory remain deferred.
 | --- | --- |
 | Appearance control | **Shipped and pushed**, commit `608a838` |
 | Per-member store preferences | **Shipped and pushed**, commit `bda3fe9` |
-| Meal plan calendar | Not started — designed in 14.5 |
-| Recipe catalog and Recipes of the week | **Next task.** Fully specified in 14.6 |
-
-The owner asked on 2026-08-03 for the catalog work to be picked up in a fresh
-session with clean context. Section 14.6 is written to be executed cold.
+| Meal plan calendar | **Next task** — designed in 14.5 |
+| Recipe catalog and Recipes of the week | **Shipped**, commits `2a7fd9d`, `4e355a8`, `42a9776` |
 
 ### 14.3 Appearance control — done
 
@@ -735,132 +732,66 @@ Open question, decide with evidence rather than up front: whether adding a
 planned week to the list should skip ingredients already on it. Combining is
 already handled for exact matches by `addIngredientToShopping`.
 
-### 14.6 Recipe catalog and Recipes of the week — not started
+### 14.6 Recipe catalog and Recipes of the week — done
 
-This is the next task and is meant to be picked up cold in a fresh session.
-Everything needed to execute it is below.
+Forty-five recipes, drawn only from the fifteen sites Section 5 measured as
+readable and spread across those sites, weeknight dinners, vegetarian meals,
+breakfasts, and bakes.
 
-#### What the owner asked for
+**The boundary that shaped it.** Importing a recipe into the household's own
+Firestore is personal use and is what Forkast exists to do. Committing forty-five
+publishers' instruction text into this repository is redistribution — ingredient
+lists are not copyrightable, instructions are, and attribution is not a licence.
+So `src/data/catalog.ts` holds links and factual labels only: `id`, `title`,
+`siteName`, `url`, `tags`, `minutes`. The type deliberately has no
+`description`, `ingredients`, or `instructions`, so a reviewer sees the rule
+without reading a comment. **Do not "fix" a future gap by checking in a JSON dump
+of imported results.**
 
-Roughly forty recipes from the top recipe sites, with **full instructions**, and
-a rotating "Recipes of the week" surface. The owner said this is exploratory for
-now, and asked twice for real recipes from real sites rather than authored
-substitutes. Honour that: the recipes must genuinely come from those publishers,
-carry their instructions, and be attributed with site name and source URL.
+`minutes` is nullable because several publishers state no time; Epicurious, Bon
+Appétit, and Food Network entries carry `null` rather than an invented number.
 
-#### The one boundary, and why
+**Verification of the data.** Every URL was fetched and run through the real
+extractor before being committed. `scripts/verify-catalog.ts` is that check —
+`node --experimental-strip-types scripts/verify-catalog.ts`, 45/45 at the time of
+writing. It is not part of `npm run check`, because it makes forty-five requests
+to other people's servers. Run it when entries start failing; publishers move
+URLs, and that is accepted rather than worked around.
 
-**Import into the household: yes. Bundle publisher prose into the repository:
-no.**
+**What shipped in the app.** `src/lib/catalogWeek.ts` picks the week
+deterministically from the week number, counted in UTC from a Monday so both
+phones agree and a new week starts on a Monday. `spreadBy` reorders the catalog
+one site at a time first: the file is written site by site, and a plain window
+over it handed out three recipes from one publisher.
+`src/lib/catalogImport.ts` holds the add logic, free of Firestore and network so
+it is tested directly; `src/lib/useCatalogAdder.ts` wires it to the app.
+`CatalogRows` renders both surfaces.
 
-Importing a recipe into the owner's own Firestore is personal use and is the
-feature Forkast already exists to provide — it is exactly what `import-recipe`
-has done since the MVP, and what Plan to Eat and Paprika do. Committing forty
-sites' worth of instruction text into a Git repository is redistribution, which
-is a different act: recipe *ingredient lists* are not copyrightable, but
-instructions and headnotes are creative expression, and attribution does not
-license republication. The owner was told this and accepted the distinction.
+Three behaviours worth keeping:
 
-So the catalog ships as **URLs plus metadata**, and the recipe text arrives by
-import at the moment a household adds it. The owner still gets forty complete,
-attributed recipes in the app. Do not "solve" this by checking in a JSON dump of
-imported results.
+- **Duplicates are checked twice** — against the catalog link, and against the
+  canonical URL the publisher declares, which is what actually gets saved and is
+  often not the link we hold.
+- **Rows settle as each recipe lands**, not when the batch ends. Anything else
+  leaves an added recipe reading as still addable through a long run.
+- **A batch paces itself** one under the importer's ten-per-minute-per-uid limit
+  and reports failures per entry.
 
-#### Build order
+**Where it lives.** Reached from the recipe book at `/catalog`, not from the
+rail. A fifth rail item would have meant re-cutting
+`grid-template-columns: repeat(4, 1fr)` and spending one-handed reach at 320px.
 
-**1. Curate and verify the list.** Create `src/data/catalog.ts` holding roughly
-forty entries:
+**Verified in a browser** signed in against the emulators at 1440, 390, and
+320px: no horizontal overflow, 52px touch targets, and real imports from nine
+publishers, including a four-recipe and a seven-recipe batch.
 
-```ts
-type CatalogEntry = {
-  id: string;          // stable slug, used for dedupe and week rotation
-  title: string;       // the publisher's title, a factual label
-  siteName: string;    // "Budget Bytes"
-  url: string;         // the canonical recipe URL
-  tags: string[];      // "weeknight", "vegetarian", "one-pot"
-  minutes: number;     // rough total time, for the browse UI
-};
-```
-
-Title, site, and URL are facts about a page, not its expressive content, so they
-belong in the repository. Do not add `description`, `ingredients`, or
-`instructions` to this type — that is the boundary above, expressed in the type
-system. A reviewer should be able to see the rule by reading the type.
-
-Draw only from the fifteen sites Section 5 measured as working:
-
-> Food Network, Delish, Taste of Home, BBC Good Food, Epicurious, Bon Appétit,
-> Food.com, King Arthur Baking, NYT Cooking, Budget Bytes, Sally's Baking,
-> RecipeTin Eats, Pinch of Yum, Love and Lemons, Minimalist Baker
-
-Skip Allrecipes, Serious Eats, Simply Recipes, and The Kitchn entirely — they
-are blocked at the CDN edge and no entry from them can ever work. Spread the
-forty across sites and across weeknight dinners, a few vegetarian, a couple of
-breakfasts, and a couple of bakes, favouring accessible ingredients.
-
-**Verify every URL before committing it.** An unverified entry is a broken
-feature, not a broken link. For each candidate, fetch it and confirm a
-`Recipe` object is present in its JSON-LD, the same way the extractor looks for
-one. A quick local check:
-
-```bash
-curl -sSL --max-time 20 -A 'Forkast/1.0' "$URL" \
-  | grep -o '"@type"[^,]*Recipe' | head -1
-```
-
-Better, exercise the real path: `netlify/lib/recipe-schema.ts` holds the
-extractor, so a small script that fetches and runs it proves the entry end to
-end. **Field-name trap, already recorded in Section 10:** the extractor returns
-`ingredientLines`, not `ingredients`. A probe reading the wrong field reports
-empty recipes and looks like a data-loss bug.
-
-Drop any candidate that fails rather than committing it hopefully.
-
-**2. Catalog UI.** A browse surface listing the catalog with title, site, time,
-and tags, and an "Add to my recipes" action per entry. Adding calls the existing
-`import-recipe` function with the entry's URL, then saves the returned draft with
-`saveRecipe`. Reuse `getRecipeDuplicateKeys` so adding the same recipe twice is a
-no-op rather than a duplicate — `recipeDuplicateKey` already keys on source URL.
-
-Respect the importer's existing limit of **10 imports per minute per uid**. Adding
-forty at once must therefore be paced or batched with visible progress, not fired
-in parallel; the CSV import screen already has a progress and error-report pattern
-worth following. Failures must be per-entry and honest: one blocked publisher
-should not fail the batch.
-
-**3. Recipes of the week.** A small rotating selection from the catalog on the
-recipes screen. Rotate deterministically from the ISO week number so both people
-in a household see the same week's picks without storing anything: index into a
-stable ordering by week, do not use `Math.random()`. Show the same "Add" action.
-
-**4. Route and navigation.** The catalog needs a route and a nav entry. The rail
-is currently four items — Recipes, Shopping, Import, Settings — and the mobile
-bottom rail is `grid-template-columns: repeat(4, 1fr)`. Adding a fifth item means
-updating that grid and re-checking one-handed reach and the 44px touch targets at
-320px. Consider instead surfacing the catalog inside the Recipes screen, which
-avoids a fifth rail item; decide with a real browser open at 390px.
-
-#### Verification
-
-- Unit-test the week rotation as a pure function of week number, and the
-  duplicate-skip behaviour. Do not write a test that fetches a publisher.
-- Confirm every committed URL extracts, once, at authoring time.
-- Drive the add flow against the emulators in a real browser at 390px and 1440px.
-- `npm run check` and `npm run test:rules` before pushing.
-
-#### Watch out for
-
-- The catalog is a live dependency: an entry breaks if a publisher moves a URL
-  or starts blocking. That is accepted. Fail honestly per Section 5, keep the
-  source URL, and offer manual entry — **never** route around a block with a
-  headless browser, proxy, or user-agent spoof. Section 5 rules those out
-  permanently.
-- Netlify Free bills 15 credits per production deploy. Batch this work; do not
-  deploy once per catalog entry.
+Fixing this surfaced a parser bug worth noting: the unit pattern was not anchored
+to a word ending, so "1 garlic clove" parsed as one gram of "arlic clove". Every
+import had been going through it. Fixed in `4e355a8`.
 
 ### 14.7 Verification environment
 
-`npm run check` passes at the handoff point: typecheck, ESLint, Prettier, 35
+`npm run check` passes at the handoff point: typecheck, ESLint, Prettier, 69
 unit tests, production build.
 
 **The Firestore emulator now runs locally.** It needs a Java runtime; the owner
@@ -868,6 +799,29 @@ installed Temurin 26 on 2026-08-03, and `npm run test:rules` passes. A
 non-interactive agent cannot install it — `brew install --cask temurin` needs a
 sudo password — so if a fresh machine lacks Java, ask the owner to run
 `! brew install --cask temurin` rather than attempting it.
+
+**Driving signed-in screens that call a Netlify Function.** `vite` alone does
+not serve `/.netlify/functions`, and `netlify dev` applies the SPA redirect in
+`netlify.toml` to Vite's own module URLs, so `/src/main.tsx` comes back as
+`index.html` and nothing mounts. What works: run
+`netlify functions:serve --port 9999` with `FIREBASE_AUTH_EMULATOR_HOST`,
+`FIRESTORE_EMULATOR_HOST`, and `FIREBASE_SERVICE_ACCOUNT_JSON` set, then run Vite
+with a local-only config that proxies `/.netlify/functions` to it. With the auth
+emulator host set, Admin accepts emulator tokens. Sign in without touching the
+popup by running, in the page:
+
+```js
+const fb = await import('/src/lib/firebase.ts');
+const auth = await import('/node_modules/.vite/deps/firebase_auth.js');
+await auth.signInWithCredential(
+  fb.auth,
+  auth.GoogleAuthProvider.credential(JSON.stringify({ sub: 'tester-1', email: 'tester@example.com', email_verified: true, name: 'Test Cook' })),
+);
+```
+
+The window-resize path of the browser tooling did not work here, so narrow
+widths were measured by driving the same signed-in flow through Playwright at
+390 and 320px and asserting `scrollWidth === innerWidth`.
 
 To drive signed-in screens in a real browser, set
 `VITE_USE_FIREBASE_EMULATORS=true` in `.env.local`, start
