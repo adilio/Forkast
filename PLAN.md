@@ -641,7 +641,7 @@ inventory remain deferred.
 | Appearance control | **Shipped and pushed**, commit `608a838` |
 | Per-member store preferences | **Shipped and pushed**, commit `bda3fe9` |
 | Meal plan calendar | **Next task** — designed in 14.5 |
-| Recipe catalog and Recipes of the week | **Shipped**, commits `2a7fd9d`, `4e355a8`, `42a9776` |
+| Recipe catalog and Recipes of the week | **Shipped**, commits `2a7fd9d`, `4e355a8`, `42a9776`, `4fe797e`, `7f3a632` |
 
 ### 14.3 Appearance control — done
 
@@ -743,10 +743,15 @@ Firestore is personal use and is what Forkast exists to do. Committing forty-fiv
 publishers' instruction text into this repository is redistribution — ingredient
 lists are not copyrightable, instructions are, and attribution is not a licence.
 So `src/data/catalog.ts` holds links and factual labels only: `id`, `title`,
-`siteName`, `url`, `tags`, `minutes`. The type deliberately has no
+`siteName`, `url`, `imageUrl`, `tags`, `minutes`. The type deliberately has no
 `description`, `ingredients`, or `instructions`, so a reviewer sees the rule
 without reading a comment. **Do not "fix" a future gap by checking in a JSON dump
 of imported results.**
+
+`imageUrl` is the publisher's own lead image, hotlinked exactly as a saved
+recipe's is — a bare URL, the same kind of fact as `url`, and no part of anyone's
+writing. It may rot; both the row and the preview hide an image that fails rather
+than reserving a hole for it.
 
 `minutes` is nullable because several publishers state no time; Epicurious, Bon
 Appétit, and Food Network entries carry `null` rather than an invented number.
@@ -757,6 +762,18 @@ extractor before being committed. `scripts/verify-catalog.ts` is that check —
 writing. It is not part of `npm run check`, because it makes forty-five requests
 to other people's servers. Run it when entries start failing; publishers move
 URLs, and that is accepted rather than worked around.
+
+**Preview before adding.** Tapping a row reads the recipe through
+`import-recipe` and shows it whole — image, servings, ingredients, directions,
+Add, and a link to the original. Nothing is written: the function returns a
+draft. The week's picks link to `/catalog?recipe=<id>` so one tap means the same
+thing on both surfaces.
+
+Previewing and then adding must stay **one** read. `createDraftCache` sits in
+front of the importer for the session, the add reuses the preview's draft, and
+the pacer skips entries already in hand — otherwise a browse-then-add spends the
+ten-a-minute allowance twice and starts collecting 429s. Failures are
+deliberately not cached, because a publisher that timed out may answer next time.
 
 **What shipped in the app.** `src/lib/catalogWeek.ts` picks the week
 deterministically from the week number, counted in UTC from a Monday so both
@@ -785,13 +802,20 @@ rail. A fifth rail item would have meant re-cutting
 320px: no horizontal overflow, 52px touch targets, and real imports from nine
 publishers, including a four-recipe and a seven-recipe batch.
 
-Fixing this surfaced a parser bug worth noting: the unit pattern was not anchored
-to a word ending, so "1 garlic clove" parsed as one gram of "arlic clove". Every
-import had been going through it. Fixed in `4e355a8`.
+Building this surfaced two parser bugs, both on the path every import takes and
+both visible only once real publisher text was on screen:
+
+- The unit pattern was not anchored to a word ending, so "1 garlic clove" parsed
+  as one gram of "arlic clove" (`4e355a8`).
+- The quantity pattern tried a plain number before a written fraction and never
+  backtracked, so "1/2 tsp salt" parsed as one of "/2 tsp salt" (`4fe797e`).
+
+The lesson is worth more than either fix: `parse-ingredient` behaviour should be
+checked against a real imported recipe on screen, not only against fixtures.
 
 ### 14.7 Verification environment
 
-`npm run check` passes at the handoff point: typecheck, ESLint, Prettier, 69
+`npm run check` passes at the handoff point: typecheck, ESLint, Prettier, 75
 unit tests, production build.
 
 **The Firestore emulator now runs locally.** It needs a Java runtime; the owner
