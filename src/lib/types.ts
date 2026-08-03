@@ -62,3 +62,20 @@ export type ShoppingItem = {
 
 /** What a caller supplies. Identity and timestamps are stamped on write. */
 export type NewShoppingItem = Omit<ShoppingItem, 'id' | 'createdBy'>;
+
+/**
+ * One recipe placed on one day. `date` is a plain `YYYY-MM-DD` string and must
+ * stay one — see the note in lib/mealPlan.ts on why a timestamp would move a
+ * household's Tuesday.
+ */
+export type PlannedMeal = {
+  id: string;
+  date: string;
+  slot: 'breakfast' | 'lunch' | 'dinner' | 'other';
+  recipeId: string;
+  /** How many this meal is for; null means "as the recipe is written". */
+  servings: number | null;
+  note: string | null;
+};
+
+export type NewPlannedMeal = Omit<PlannedMeal, 'id'>;

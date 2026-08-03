@@ -10,6 +10,7 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
   writeBatch,
   type QuerySnapshot,
   type Unsubscribe,
@@ -20,7 +21,9 @@ import { recipeDuplicateKey } from './recipes';
 import type {
   Member,
   MemberPrefs,
+  NewPlannedMeal,
   NewShoppingItem,
+  PlannedMeal,
   Recipe,
   ShoppingItem,
   Store,
@@ -169,6 +172,55 @@ export async function deleteStore(
   return moving.length;
 }
 
+/**
+ * The meals planned for one week. Queried by date range on plain strings,
+ * which sort lexicographically exactly as dates do — one of the reasons the
+ * date is stored as `YYYY-MM-DD` rather than a timestamp.
+ */
+export function listenPlannedMeals(
+  householdId: string,
+  fromDate: string,
+  toDate: string,
+  onData: (rows: PlannedMeal[]) => void,
+  onError?: (e: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    query(
+      path(householdId, 'plannedMeals'),
+      where('date', '>=', fromDate),
+      where('date', '<=', toDate),
+      orderBy('date'),
+    ),
+    (snap) => onData(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as PlannedMeal)),
+    onError,
+  );
+}
+
+export async function savePlannedMeal(
+  householdId: string,
+  meal: NewPlannedMeal & { id?: string },
+) {
+  const { id, ...body } = meal;
+  const ref = id
+    ? doc(path(householdId, 'plannedMeals'), id)
+    : doc(path(householdId, 'plannedMeals'));
+  await setDoc(
+    ref,
+    {
+      ...body,
+      ...(id ? {} : { createdAt: serverTimestamp(), createdBy: actor() }),
+      updatedAt: serverTimestamp(),
+      updatedBy: actor(),
+    },
+    { merge: true },
+  );
+  return ref.id;
+}
+
+export async function deletePlannedMeal(householdId: string, id: string) {
+  await deleteDoc(doc(path(householdId, 'plannedMeals'), id));
+}
+
 export function listenShopping(
   householdId: string,
   onData: (rows: ShoppingItem[]) => void,
@@ -208,15 +260,20 @@ export async function addIngredientToShopping(
       !item.checked &&
       item.storeId === input.storeId &&
       item.normalizedName === input.normalizedName &&
-      item.unit === input.unit &&
-      item.quantity != null &&
-      input.quantity != null
+      item.unit === input.unit
     );
   });
   if (match) {
     const item = match.data() as ShoppingItem;
+    // Two measured amounts add up. An unmeasured one — "salt to taste" — has
+    // nothing to add, and a second copy of it tells the shopper nothing, so
+    // the row that is already there stands. Before the meal plan this barely
+    // showed, because recipes were sent one at a time; a planned week sends
+    // seven at once and would otherwise stack seven identical "salt" rows.
+    if (input.quantity == null) return;
     await updateShoppingItem(householdId, match.id, {
-      quantity: (item.quantity ?? 0) + (input.quantity ?? 0),
+      // An unmeasured row learning an amount is strictly better information.
+      quantity: (item.quantity ?? 0) + input.quantity,
     });
     return;
   }

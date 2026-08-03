@@ -18,6 +18,7 @@ const RecipesPage = lazy(() => import('./pages/RecipesPage'));
 const ShoppingPage = lazy(() => import('./pages/ShoppingPage'));
 const CsvImportPage = lazy(() => import('./pages/CsvImportPage'));
 const CatalogPage = lazy(() => import('./pages/CatalogPage'));
+const PlanPage = lazy(() => import('./pages/PlanPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 
 const navItems = [
@@ -72,6 +73,7 @@ function AppShell() {
             {/* Reached from the recipe book rather than the rail: a fifth rail
                 item would cost one-handed reach on a 320px screen. */}
             <Route path="/catalog" component={CatalogPage} />
+            <Route path="/plan" component={PlanPage} />
             <Route path="/install" component={InstallPage} />
             <Route path="/settings" component={SettingsPage} />
             <Route>

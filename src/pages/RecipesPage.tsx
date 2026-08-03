@@ -112,6 +112,9 @@ export default function RecipesPage() {
               placeholder="Try chicken or lime"
             />
           </label>
+          <Link className="button button--outline" href="/plan">
+            This week
+          </Link>
           <Link className="button button--outline" href="/import-csv">
             Import CSV
           </Link>

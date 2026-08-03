@@ -9,7 +9,12 @@ fresh task needs in order to act correctly.
 
 ## 1. Next up
 
-**1. The meal plan calendar** — designed in Section 9, not started.
+Nothing is queued. Section 5's deferred list is the backlog, and each entry
+still needs a real household problem to supply its acceptance criteria before it
+is started.
+
+The nearest thing to a next step is evidence, not code: cook and shop from
+Forkast for a week and let what annoys you choose the work.
 
 Manual owner-run acceptance checks — a second Google account, real iPhone
 install and capture, a live week of cooking — were removed from this queue on
@@ -47,8 +52,9 @@ one-time invites; recipe CRUD, search, favourites, draft recovery, serving
 scaling, and ingredient transfer; the JSON-LD website importer with its SSRF
 protections; Plan to Eat CSV import; realtime offline per-store shopping lists
 with remembered routing; full JSON and schema.org export; PWA install; Firestore
-rules; CI. Plus three second-pass features whose invariants are in Section 9: the
-appearance control, per-member store routing, and the starter recipe catalog.
+rules; CI. Plus the second-pass features whose invariants are in Section 9: the
+appearance control, per-member store routing, the starter recipe catalog, the
+persistent preview cache, household-defined stores, and the meal plan week.
 
 Do not rebuild any of it.
 
@@ -115,7 +121,8 @@ on poor service, Home Screen install, and full export.
 **Deferred** — not rejected, but each needs a real household problem to supply
 its acceptance criteria first:
 
-- Drag-and-drop meal planning and saved reusable plans
+- Drag-and-drop meal planning and saved reusable plans (the week view itself
+  ships; dragging and reusable templates do not)
 - Pantry/freezer inventory and "what can I make?" queries
 - Nutrition, macros, USDA matching, density tables
 - Price tracking, budgets, grocery-ordering integrations
@@ -363,8 +370,9 @@ two — the live household's own stores were left untouched.
 - Reordering rewrites the whole order as consecutive positions rather than
   swapping two values, so an order that drifted comes back consistent.
 
-**Meal plan calendar — designed, not started.** A week view with tap-to-place,
-not drag-and-drop:
+**Meal plan calendar.** A week of days at `/plan`, reached from the recipe book
+rather than the rail — a fifth rail item would cost one-handed reach at 320px,
+the same reason the catalog is not there either.
 
 ```text
 households/{hid}/plannedMeals/{id}
@@ -373,12 +381,31 @@ households/{hid}/plannedMeals/{id}
   recipeId, servings, note, created*/updated*
 ```
 
-The date must be a string: a timestamp makes "Tuesday" depend on the reader's
-time zone, which is wrong for a household calendar. Plan-to-list scales each
-planned recipe to its planned servings and routes ingredients through
-`routeIngredient`, reusing the transfer path the recipe screen already has.
-Whether adding a planned week should skip ingredients already on the list is an
-open question — decide it with evidence; exact matches already combine.
+- **The date must stay a plain string**, and the rules enforce the format. A
+  timestamp makes "Tuesday" depend on the reader's time zone, which is wrong for
+  a household calendar. `src/lib/mealPlan.ts` is the only way in and out:
+  everything there works in local time, and nothing may pass one of these
+  strings to `new Date(iso)`, which parses a bare date as UTC and lands on the
+  previous evening for anyone behind it.
+- **`recipeId` is deliberately not checked against an existing recipe.** A
+  recipe someone deletes would otherwise freeze every meal naming it — no write
+  to that meal could pass again, including the one that corrects it. The screen
+  says "a recipe no longer in your book" and lets it be removed. This is the
+  same trap the store deletion above avoids, met a second time.
+- **Tap to place, not drag.** Dragging onto a Tuesday is a desktop gesture; on
+  the phone this is planned on it is a long press, an autoscroll, and a
+  fingernail-sized target. The week is a column of days, not a seven-across
+  grid — twenty-eight cells will not fit legibly across 320px — and only slots
+  with something in them are drawn, so an empty week is seven rows, not
+  twenty-eight blanks demanding to be filled.
+- **Plan-to-list** scales each planned recipe by `planFactor` and routes through
+  `routeIngredient`, reusing `lib/transfer.ts`.
+- **Ingredients already on the list are not skipped**, which settles the old open
+  question. An exact match — same store, name, and unit — combines into one
+  line; anything less exact is a judgement Forkast cannot make correctly, since
+  two recipes wanting "1 onion" really do want two. Sending a week made one
+  gap visible and it was fixed: unmeasured lines like "salt to taste" now match
+  an existing row instead of stacking a fresh copy per meal.
 
 ## 10. Verification
 

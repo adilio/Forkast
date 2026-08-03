@@ -231,6 +231,84 @@ describe('household isolation', () => {
       ),
     );
   });
+  it('validates planned meals, and keeps the date a plain day', async () => {
+    const bob = env.authenticatedContext('bob').firestore();
+    const valid = {
+      date: '2026-08-04',
+      slot: 'dinner',
+      recipeId: 'soup',
+      servings: 4,
+      note: null,
+      createdAt: new Date(),
+      createdBy: 'bob',
+      updatedAt: new Date(),
+      updatedBy: 'bob',
+    };
+    await assertSucceeds(setDoc(doc(bob, 'households/home/plannedMeals/one'), valid));
+    await assertSucceeds(
+      setDoc(doc(bob, 'households/home/plannedMeals/two'), {
+        ...valid,
+        servings: null,
+      }),
+    );
+    await assertSucceeds(deleteDoc(doc(bob, 'households/home/plannedMeals/two')));
+
+    // A timestamp would make the household's Tuesday depend on who is reading.
+    await assertFails(
+      setDoc(doc(bob, 'households/home/plannedMeals/stamped'), {
+        ...valid,
+        date: new Date(),
+      }),
+    );
+    await assertFails(
+      setDoc(doc(bob, 'households/home/plannedMeals/loose'), {
+        ...valid,
+        date: '4 August 2026',
+      }),
+    );
+    await assertFails(
+      setDoc(doc(bob, 'households/home/plannedMeals/slot'), {
+        ...valid,
+        slot: 'brunch',
+      }),
+    );
+    await assertFails(
+      setDoc(doc(bob, 'households/home/plannedMeals/norecipe'), {
+        ...valid,
+        recipeId: '',
+      }),
+    );
+    await assertFails(
+      setDoc(doc(bob, 'households/home/plannedMeals/absurd'), {
+        ...valid,
+        servings: 5000,
+      }),
+    );
+    await assertFails(
+      setDoc(doc(bob, 'households/home/plannedMeals/extra'), {
+        ...valid,
+        admin: true,
+      }),
+    );
+    await assertFails(
+      setDoc(
+        doc(
+          env.authenticatedContext('carol').firestore(),
+          'households/home/plannedMeals/cross',
+        ),
+        { ...valid, createdBy: 'carol', updatedBy: 'carol' },
+      ),
+    );
+    await assertFails(
+      setDoc(
+        doc(
+          env.unauthenticatedContext().firestore(),
+          'households/home/plannedMeals/out',
+        ),
+        valid,
+      ),
+    );
+  });
   it('keeps store preferences personal', async () => {
     const alice = env.authenticatedContext('alice').firestore();
     const bob = env.authenticatedContext('bob').firestore();

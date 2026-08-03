@@ -101,6 +101,38 @@ service cloud.firestore {
         }
       }
 
+      // The week's plan. `date` is validated as a plain YYYY-MM-DD string
+      // rather than a timestamp: a household calendar's Tuesday must not
+      // depend on which time zone the reader is in.
+      //
+      // recipeId is deliberately NOT checked against an existing recipe. A
+      // recipe someone deletes would otherwise freeze every meal that named
+      // it — no write to that meal could pass again, including the one that
+      // corrects it — so the plan screen tolerates a missing recipe instead.
+      match /plannedMeals/{plannedMealId} {
+        allow read: if member(householdId);
+        function validPlannedMeal() {
+          return only(['date','slot','recipeId','servings','note','createdAt','createdBy','updatedAt','updatedBy'])
+          && request.resource.data.date is string
+          && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && request.resource.data.slot in ['breakfast','lunch','dinner','other']
+          && request.resource.data.recipeId is string
+          && request.resource.data.recipeId.size() > 0
+          && (request.resource.data.servings == null
+              || (request.resource.data.servings is number
+                  && request.resource.data.servings > 0
+                  && request.resource.data.servings <= 100))
+          && request.resource.data.updatedBy == request.auth.uid;
+        }
+        allow create: if member(householdId)
+          && validPlannedMeal()
+          && request.resource.data.createdBy == request.auth.uid;
+        allow update: if member(householdId)
+          && validPlannedMeal()
+          && request.resource.data.createdBy == resource.data.createdBy;
+        allow delete: if member(householdId);
+      }
+
       match /shoppingItems/{itemId} {
         allow read: if member(householdId);
         function validShoppingItem() {

@@ -74,8 +74,10 @@ the users to maintain a formal ingredient taxonomy.
   and the complete household exports as Forkast JSON.
 - The implementation favors boring, well-supported dependencies and simple,
   reversible choices over speculative architecture.
-- Meal calendars, nutrition, pantry inventory, OCR, LLM parsing, social-site
-  scraping, price tracking, and native apps are explicitly deferred.
+- A tap-to-place weekly meal plan ships, and sends its week to the shopping
+  list. Drag-and-drop planning and saved reusable plans remain deferred, as do
+  nutrition, pantry inventory, OCR, LLM parsing, social-site scraping, price
+  tracking, and native apps.
 - The actual Plan to Eat CSV remains private and must never be committed.
 - The exact visual system is deliberately delegated to the Impeccable workflow
   and the implementing agent's judgment. It must fit the operating context and
