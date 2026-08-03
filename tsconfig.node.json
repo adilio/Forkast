@@ -18,6 +18,7 @@
     "vitest.rules.config.ts",
     "eslint.config.js",
     "playwright.config.ts",
-    "netlify/functions"
+    "netlify/functions",
+    "scripts"
   ]
 }
