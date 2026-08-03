@@ -105,8 +105,13 @@ Milestones 0–6 of the original plan are complete. Do not rebuild them.
 - Production probes: the app, manifest, icons, cache/security headers, and the
   anonymous function boundary behave correctly — anonymous import returns
   `401 {"message":"Sign in to continue."}` rather than crashing.
-- A disposable acceptance account proved household bootstrap, store seeding,
-  invite creation, and export structure. No real user depends on that data.
+- Household bootstrap, store seeding, invite creation, and export structure were
+  all proven in production during acceptance. The account that exercised them no
+  longer exists; the current state is described above.
+- Recipe import was verified end-to-end through the live function on 2026-08-03,
+  so the fetch originated from Netlify's IPs rather than a developer machine.
+  Seven sites returned complete recipes and a known-blocked site failed as a
+  control. Details and the full site table are in Section 5.
 
 ### Continuation checklist
 
@@ -481,6 +486,40 @@ build, plus Firestore rule tests when data access changes and Playwright smoke
 tests for critical flows. CI runs these on pushes to `main`; keep it small enough
 not to waste Netlify deploy credits.
 
+### Operating production without a browser
+
+These techniques were worked out during the Google-only cutover and are recorded
+because nothing else in the repository explains them. All of them use the local
+service-account key named in Section 1.
+
+- **Confirm a deploy actually landed.** Poll the production document for the
+  commit SHA rather than guessing at Netlify timing:
+  `curl -sS https://forkast.4dl.ca/ | grep forkast-build`. The stamp equals the
+  deployed commit.
+- **Confirm a service-worker-affecting change reached clients.** Load the site in
+  a browser, then re-load. The first visit fetches the new worker; the second is
+  served by it. Reading headers with `curl` proves nothing about what an
+  installed client sees.
+- **Read or change Firebase Auth configuration** through the Identity Toolkit
+  admin API with a `cloud-platform`-scoped token from the key:
+  `GET/PATCH https://identitytoolkit.googleapis.com/admin/v2/projects/forkast-4dl/config`
+  (authorized domains, `signIn.email.enabled`) and
+  `.../defaultSupportedIdpConfigs` (provider enablement). Email/password was
+  disabled with `PATCH ?updateMask=signIn.email.enabled`.
+- **Exercise an authenticated Netlify Function without a browser.** Mint a custom
+  token for a uid whose `users/{uid}` document has a `householdId`, exchange it
+  via `accounts:signInWithCustomToken` with the public `VITE_FIREBASE_API_KEY`,
+  then send the resulting `idToken` as a Bearer header. `import-recipe` is
+  read-only — it returns a draft and writes nothing — so it is safe to probe.
+  Respect its limit of 10 imports per minute per uid.
+- **Field-name trap.** The extractor returns `ingredientLines`, not
+  `ingredients`. A probe reading the wrong field reports empty recipes and looks
+  like a data-loss bug.
+- **Inventory before destructive work.** List Auth users with their providers and
+  map each household's members and document counts first. Doing this is what
+  revealed that the "disposable password account" in earlier handoffs no longer
+  existed and that the only remaining household was the owner's.
+
 Required fixture coverage:
 
 - JSON-LD: single object, `@graph`, array, HowToStep, HowToSection, missing
@@ -527,8 +566,10 @@ Household acceptance script, on the two actual iPhones:
 ## 12. Definition of MVP complete
 
 Software and automated criteria are met, production credentials and rules are
-live, and Google sign-in works. The items below are not claimed complete; see the
-continuation checklist for order.
+live, Google sign-in works, email/password is retired, and website import is
+verified from production. Everything still open needs owner consent, the
+household's own data, or a physical iPhone. The items below are not claimed
+complete; see the continuation checklist for order.
 
 - The owner and Marla sign in only with Google and stay signed in on their
   iPhones, with no legacy password identity.
@@ -553,7 +594,9 @@ continuation checklist for order.
 > `PLAN.md`, `README.md`, and `/Users/adil/Code/AGENTS.md` before acting. Treat
 > `PRODUCT.md` and `PLAN.md` as the product and implementation authorities. Start
 > from the continuation checklist in Section 1, respect the operational
-> invariants there, and preserve completed work — do not rebuild milestones and do
+> invariants there, read "Operating production without a browser" in Section 10
+> before touching Firebase or production, and preserve completed work — do not
+> rebuild milestones and do
 > not rerun Impeccable's one-time detector. Work autonomously to the definition of
 > complete in Section 12 without stopping for routine questions. Use Impeccable
 > for any material frontend change and re-verify affected flows in a real browser.
