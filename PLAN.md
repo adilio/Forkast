@@ -1,6 +1,7 @@
 # Forkast implementation plan
 
-Last updated: 2026-08-03 (second pass — see Section 14 for the work in flight)
+Last updated: 2026-08-03 (second pass: appearance, per-member routing, and the
+recipe catalog are shipped; the meal plan calendar in Section 14.5 is next)
 
 This is the implementation authority for continuing Forkast in a fresh task.
 `PRODUCT.md` is the product authority; `DESIGN.md` is the visual authority;
@@ -86,9 +87,16 @@ Each of these was learned from a production failure. Breaking one fails quietly.
 
 Milestones 0–6 of the original plan are complete. Do not rebuild them.
 
+Three second-pass features are also live and are described in Section 14, not
+here: the light/dark/device appearance control, per-member store routing, and the
+starter recipe catalog with its weekly picks and preview. The catalog is the only
+part of Forkast that depends on other people's URLs staying put — when an entry
+stops working, run `node --experimental-strip-types scripts/verify-catalog.ts`
+rather than guessing.
+
 ### Verification completed
 
-- `npm run check` passes: TypeScript, ESLint, Prettier, 29 unit tests, and the
+- `npm run check` passes: TypeScript, ESLint, Prettier, 75 unit tests, and the
   production/PWA build. Auth tests cover Google-only popup, redirect completion,
   redirect failure, and cancellation, and assert that no user-facing auth message
   mentions a password or linking.
@@ -184,9 +192,11 @@ collaborative checking with poor service, Home Screen install, and full export.
 directly. They are no longer gated on evidence; see Section 14 for scope and
 status.
 
-- Meal-planning calendar and turning a plan into a shopping list
-- Per-member store preferences on the shared list
-- A starter recipe catalog and a rotating "Recipes of the week"
+- Meal-planning calendar and turning a plan into a shopping list — designed in
+  Section 14.5, **not started**, and the next task
+- Per-member store preferences on the shared list — **shipped**, commit `bda3fe9`
+- A starter recipe catalog and a rotating "Recipes of the week" — **shipped**,
+  commits `2a7fd9d` through `7f3a632`
 - Light/dark/system appearance — **shipped**, commit `608a838`
 
 **Explicitly deferred** — deferred is not rejected, but each item needs a real
@@ -321,8 +331,9 @@ which is its own decision and is not authorized by the above.
 
 After at least two weeks of household use, review evidence in this order:
 
-1. If recipes are regularly planned ahead, add a simple week view with tap to
-   place. Do not start with drag-and-drop.
+1. Superseded 2026-08-03: the owner asked for the week view directly, so it is no
+   longer gated on evidence. Still tap-to-place, not drag-and-drop; see Section
+   14.5.
 2. If source images frequently disappear or personal photos are wanted, enable
    Firebase Storage on Blaze with budget alerts and client-side WebP resizing.
 3. If manual fallback is common, count the failing sites, then act on Section 5.
@@ -534,7 +545,11 @@ Required fixture coverage:
 - JSON-LD: single object, `@graph`, array, HowToStep, HowToSection, missing
   servings, multiple image representations, malformed JSON, and no Recipe
 - Ingredients: integer, decimal, common fraction, Unicode fraction, mixed
-  fraction, range, missing unit, "to taste," non-scalable text
+  fraction, range, missing unit, "to taste," non-scalable text, a name that
+  starts with a unit abbreviation ("1 garlic clove"), and an abbreviated unit
+  with a trailing period ("2 tbsp. dill"). The last two were real bugs; both were
+  invisible in fixtures and obvious on screen, so check a real imported recipe
+  as well as the suite.
 - Plan to Eat: normal export, alternate capitalization, embedded
   newlines/quotes, blank fields, duplicate URLs/titles, unknown columns,
   invalid rows
@@ -547,7 +562,8 @@ Household acceptance script, on the two actual iPhones:
    reopening the installed PWA.
 2. Share three real recipe websites through the Shortcut, including one expected
    failure, and confirm manual recovery is tolerable.
-3. Star a recipe and find it by search.
+3. Open two starter-catalog recipes, check the preview reads correctly, and add
+   one. Star a recipe and find it by search.
 4. Change a 4-serving recipe to 6 and check the quantities.
 5. Add selected scaled ingredients to both stores.
 6. Move an ingredient from City Market to Costco and remember the preference.
@@ -559,6 +575,7 @@ Household acceptance script, on the two actual iPhones:
 
 | Risk | Mitigation |
 | --- | --- |
+| A catalog URL or image moves or starts blocking | Accepted, not worked around. `scripts/verify-catalog.ts` re-checks every entry; images hide themselves rather than leaving a hole. |
 | A site blocks fetching or lacks JSON-LD | Honest error, preserve the URL, editable manual entry, no bot bypass. See Section 5. |
 | Imported ingredients parse incorrectly | Preserve `rawText`, show review, allow correction and non-scalable marking. |
 | Firestore rules leak household data | Emulator rule tests are a release blocker; membership mutation stays server-side. |
@@ -602,8 +619,9 @@ complete; see the continuation checklist for order.
 > Continue the Forkast project in `/Users/adil/Code/Forkast`. Read `PRODUCT.md`,
 > `PLAN.md`, `README.md`, and `/Users/adil/Code/AGENTS.md` before acting. Treat
 > `PRODUCT.md` and `PLAN.md` as the product and implementation authorities.
-> **Start from Section 14 — it is the live work — then** the continuation
-> checklist in Section 1. Respect the operational
+> **Start from Section 14.5, the meal plan calendar — it is the live work —
+> then** the continuation checklist in Section 1. Sections 14.3, 14.4, and 14.6
+> are already shipped; read them for the invariants they record, not as work. Respect the operational
 > invariants there, read "Operating production without a browser" in Section 10
 > before touching Firebase or production, and preserve completed work — do not
 > rebuild milestones and do
@@ -618,8 +636,10 @@ complete; see the continuation checklist for order.
 
 ## 14. Second pass: planning, per-member routing, catalog, appearance
 
-Opened 2026-08-03 on the owner's direct instruction. Four items, taken in this
-order. Everything below reflects state at the handoff point.
+Opened 2026-08-03 on the owner's direct instruction. Four items. Three are
+shipped; the meal plan calendar in 14.5 is the remaining one and is the next
+task. The shipped sections stay because of the invariants they record, not as
+work to redo.
 
 ### 14.1 What the owner asked for
 
@@ -640,7 +660,7 @@ inventory remain deferred.
 | --- | --- |
 | Appearance control | **Shipped and pushed**, commit `608a838` |
 | Per-member store preferences | **Shipped and pushed**, commit `bda3fe9` |
-| Meal plan calendar | **Next task** — designed in 14.5 |
+| Meal plan calendar | **Not started, next task** — designed in 14.5 |
 | Recipe catalog and Recipes of the week | **Shipped**, commits `2a7fd9d`, `4e355a8`, `42a9776`, `4fe797e`, `7f3a632` |
 
 ### 14.3 Appearance control — done
@@ -721,8 +741,8 @@ households/{householdId}/plannedMeals/{plannedMealId}
   createdAt, createdBy, updatedAt, updatedBy
 ```
 
-A week view with tap-to-place rather than drag-and-drop, per Section 5's
-decision queue. The plan-to-list step scales each planned recipe to its planned
+A week view with tap-to-place rather than drag-and-drop: the owner released the
+calendar from deferral, but not drag-and-drop with it. The plan-to-list step scales each planned recipe to its planned
 servings and routes every ingredient through `routeIngredient`, so it reuses the
 transfer path that already exists on the recipe screen rather than a second one.
 Store the date as a plain `YYYY-MM-DD` string: a timestamp makes "Tuesday" depend
@@ -782,7 +802,8 @@ one site at a time first: the file is written site by site, and a plain window
 over it handed out three recipes from one publisher.
 `src/lib/catalogImport.ts` holds the add logic, free of Firestore and network so
 it is tested directly; `src/lib/useCatalogAdder.ts` wires it to the app.
-`CatalogRows` renders both surfaces.
+`CatalogRows` renders the rows on both surfaces and `CatalogPreview` the opened
+recipe.
 
 Three behaviours worth keeping:
 
