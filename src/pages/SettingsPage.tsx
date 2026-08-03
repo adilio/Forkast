@@ -1,6 +1,4 @@
 import { useEffect, useState } from 'react';
-import { signOut } from 'firebase/auth';
-import { auth } from '../lib/firebase';
 import { useAuth } from '../lib/auth';
 import { callFunction } from '../lib/api';
 import {
@@ -13,6 +11,7 @@ import {
 } from '../lib/data';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { StoreManager } from '../components/StoreManager';
+import { SignOutButton } from '../components/SignOutButton';
 import type { Store } from '../lib/types';
 function download(name: string, data: unknown, type = 'application/json') {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type });
@@ -225,9 +224,7 @@ export default function SettingsPage() {
           {error}
         </p>
       )}
-      <button className="text-button danger-text" onClick={() => signOut(auth!)}>
-        Sign out
-      </button>
+      <SignOutButton />
     </section>
   );
 }

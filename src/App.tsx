@@ -8,6 +8,7 @@
 import { lazy, Suspense } from 'react';
 import { Link, Redirect, Route, Switch, useLocation } from 'wouter';
 import { Icon } from './components/Icon';
+import { SignOutButton } from './components/SignOutButton';
 import { useAuth } from './lib/auth';
 import AuthPage from './pages/AuthPage';
 import OnboardingPage from './pages/OnboardingPage';
@@ -44,7 +45,7 @@ function NavigationLink({ to, label, icon }: (typeof navItems)[number]) {
   );
 }
 
-function AppShell() {
+function AppShell({ showSignOut = false }: { showSignOut?: boolean }) {
   return (
     <div className="app-shell">
       <aside className="work-rail">
@@ -57,9 +58,12 @@ function AppShell() {
             <NavigationLink key={item.to} {...item} />
           ))}
         </nav>
-        <div className="sync-note" role="status">
-          <Icon name="wifi" />
-          <span>Ready when service is spotty</span>
+        <div className="rail-footer">
+          <div className="sync-note" role="status">
+            <Icon name="wifi" />
+            <span>Ready when service is spotty</span>
+          </div>
+          {showSignOut && <SignOutButton compact />}
         </div>
       </aside>
 
@@ -104,5 +108,5 @@ export default function App() {
   if (!configured) return <AppShell />;
   if (!user) return <AuthPage />;
   if (!householdId) return <OnboardingPage />;
-  return <AppShell />;
+  return <AppShell showSignOut />;
 }

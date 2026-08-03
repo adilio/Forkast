@@ -9,7 +9,8 @@ type IconName =
   | 'calendar'
   | 'sun'
   | 'moon'
-  | 'display';
+  | 'display'
+  | 'log-out';
 
 const paths: Record<IconName, string> = {
   book: 'M4 5.5A2.5 2.5 0 0 1 6.5 3H11a3 3 0 0 1 3 3v15a3 3 0 0 0-3-3H6.5A2.5 2.5 0 0 0 4 20.5zm16 0A2.5 2.5 0 0 0 17.5 3H14v18a3 3 0 0 1 3-3h.5a2.5 2.5 0 0 1 2.5 2.5z',
@@ -25,6 +26,7 @@ const paths: Record<IconName, string> = {
   sun: 'M12 8.4a3.6 3.6 0 1 0 0 7.2 3.6 3.6 0 0 0 0-7.2M12 2v2.2M12 19.8V22M22 12h-2.2M4.2 12H2M19.07 4.93l-1.56 1.56M6.49 17.51l-1.56 1.56M19.07 19.07l-1.56-1.56M6.49 6.49 4.93 4.93',
   moon: 'M20.5 14.3A8.7 8.7 0 0 1 9.7 3.5a8.7 8.7 0 1 0 10.8 10.8z',
   display: 'M3 5.4h18v10.2H3zM9 20.4h6',
+  'log-out': 'M10 4H5v16h5M14 8l4 4-4 4m4-4H9',
 };
 
 export function Icon({ name }: { name: IconName }) {

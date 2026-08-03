@@ -286,18 +286,53 @@ svg {
   color: var(--ink);
   background: var(--rail-hover);
 }
-.sync-note {
+.rail-footer {
   margin-top: auto;
+  display: grid;
+  gap: 0.25rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--line);
+}
+.sync-note {
   display: flex;
   align-items: center;
   gap: 0.65rem;
-  padding: 0.9rem 0.7rem;
+  padding: 0.65rem 0.7rem;
   color: var(--muted);
   font-size: 0.8125rem;
-  border-top: 1px solid var(--line);
 }
 .sync-note svg {
   color: var(--pending);
+  flex: 0 0 auto;
+}
+.rail-sign-out {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.55rem 0.7rem;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    color 180ms ease-out,
+    background-color 180ms ease-out;
+}
+.rail-sign-out:hover:not(:disabled) {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+.rail-sign-out:disabled {
+  color: var(--disabled-ink);
+  cursor: not-allowed;
+}
+.rail-sign-out svg {
   flex: 0 0 auto;
 }
 .work-surface {
