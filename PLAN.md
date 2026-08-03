@@ -639,9 +639,12 @@ inventory remain deferred.
 | Item | State |
 | --- | --- |
 | Appearance control | **Shipped and pushed**, commit `608a838` |
-| Per-member store preferences | In progress — pure router written, not yet wired |
-| Meal plan calendar | Not started |
-| Recipe catalog and Recipes of the week | Not started; sourcing decided, see 14.6 |
+| Per-member store preferences | **Shipped and pushed**, commit `bda3fe9` |
+| Meal plan calendar | Not started — designed in 14.5 |
+| Recipe catalog and Recipes of the week | **Next task.** Fully specified in 14.6 |
+
+The owner asked on 2026-08-03 for the catalog work to be picked up in a fresh
+session with clean context. Section 14.6 is written to be executed cold.
 
 ### 14.3 Appearance control — done
 
@@ -665,7 +668,7 @@ Two invariants worth keeping:
 
 `DESIGN.md` carries the full night palette and is the authority for it.
 
-### 14.4 Per-member store preferences — in progress
+### 14.4 Per-member store preferences — done
 
 **The problem.** `households/{id}/ingredientStoreRules/{key}` is one shared set
 of ingredient-to-store rules. With two people on one list, whoever last sent
@@ -686,25 +689,26 @@ deliberately free of Firestore so it can be tested directly. It returns the
 reason alongside the store, because a list that reroutes without saying so reads
 as a bug the first time it disagrees with you.
 
-**Still to do.**
+**What shipped.** `memberPrefs/{uid}` holds each person's `defaultStoreId`;
+`memberPrefs/{uid}/storeRules/{key}` holds their own ingredient rules.
+`rememberStore` writes only the caller's rules. The shopping tab opens on the
+reader's own store, **derived rather than stored** so it settles when the
+preference arrives instead of an effect racing the render — ESLint's
+`set-state-in-effect` rule catches the stored version, so do not reintroduce it.
+Settings gained a default-store picker and a way to forget your own routing.
 
-- Firestore paths and `data.ts` accessors for `memberPrefs`, including changing
-  `rememberStore` to write the caller's own rules rather than the household's.
-- Security rules: any member may read `memberPrefs`, only `request.auth.uid ==
-  uid` may write their own, and `defaultStoreId` must reference a real store.
-  Add emulator cases for a member writing another member's preferences.
-- `RecipesPage` — route through `routeIngredient`, and retire the
-  `forkast:last-store` `localStorage` key in favour of the stored default store,
-  which also syncs across that person's devices.
-- `ShoppingPage` — open on the reader's own default store rather than the
-  hardcoded `city-market`, and write the reader's rule when an item is moved.
-- `SettingsPage` — a section to choose a default store and review or reset your
-  own routing.
-- Unit tests for the router; rules tests for the new collection.
-- Consider adding `displayName` to `households/{id}/members/{uid}`, written by
-  `bootstrap-household` and `redeem-invite`. The shared list cannot currently
-  attribute an item to a person because `users/{uid}` is only readable by that
-  user. This is what makes the list feel genuinely shared rather than merged.
+`displayName` is now mirrored onto `households/{id}/members/{uid}` by both
+`bootstrap-household` and `redeem-invite`, because `users/{uid}` is readable only
+by that user and a shared list otherwise has no way to credit anyone. **Existing
+member documents predate this and have no `displayName`** — the UI falls back to
+"someone in your household". If the owner wants real names on existing rows, a
+one-off admin backfill from `users/{uid}` is needed; it was not run, because
+doing so touches the owner's live household.
+
+Rules test `keeps store preferences personal` covers a member reading but not
+writing another's preferences, a non-member being refused entirely, a
+nonexistent store being rejected, and the old household collection being
+readable but frozen.
 
 ### 14.5 Meal plan calendar — not started
 
@@ -731,28 +735,128 @@ Open question, decide with evidence rather than up front: whether adding a
 planned week to the list should skip ingredients already on it. Combining is
 already handled for exact matches by `addIngredientToShopping`.
 
-### 14.6 Recipe catalog — not started, sourcing decided
+### 14.6 Recipe catalog and Recipes of the week — not started
 
-The owner asked for roughly forty recipes from the top recipe sites, noting this
-is exploratory for now.
+This is the next task and is meant to be picked up cold in a fresh session.
+Everything needed to execute it is below.
 
-**Decision: curate URLs, import live, bundle nothing.** The catalog is a list of
-real recipe URLs on the fifteen sites Section 5 measured as working. Forkast
-fetches each through the existing `import-recipe` function on demand. Recipe
-ingredient lists are not copyrightable, but instructions and headnotes are, so
-copying publisher prose into this repository would be reproducing their content;
-importing keeps provenance and attribution intact and reuses a path that is
-already built, protected, and measured. It also means the catalog cannot ship
-anything the importer cannot handle.
+#### What the owner asked for
 
-The cost is a live dependency: a catalog entry breaks if a publisher moves or
-starts blocking. Accept it, fail honestly per Section 5, and never route around
-a block.
+Roughly forty recipes from the top recipe sites, with **full instructions**, and
+a rotating "Recipes of the week" surface. The owner said this is exploratory for
+now, and asked twice for real recipes from real sites rather than authored
+substitutes. Honour that: the recipes must genuinely come from those publishers,
+carry their instructions, and be attributed with site name and source URL.
 
-**Still to do.** Verify every candidate URL resolves and carries Recipe JSON-LD
-before committing it — an unverified catalog entry is a broken feature, not a
-broken link. Draw from the fifteen working sites and skip the four blocked ones
-entirely.
+#### The one boundary, and why
+
+**Import into the household: yes. Bundle publisher prose into the repository:
+no.**
+
+Importing a recipe into the owner's own Firestore is personal use and is the
+feature Forkast already exists to provide — it is exactly what `import-recipe`
+has done since the MVP, and what Plan to Eat and Paprika do. Committing forty
+sites' worth of instruction text into a Git repository is redistribution, which
+is a different act: recipe *ingredient lists* are not copyrightable, but
+instructions and headnotes are creative expression, and attribution does not
+license republication. The owner was told this and accepted the distinction.
+
+So the catalog ships as **URLs plus metadata**, and the recipe text arrives by
+import at the moment a household adds it. The owner still gets forty complete,
+attributed recipes in the app. Do not "solve" this by checking in a JSON dump of
+imported results.
+
+#### Build order
+
+**1. Curate and verify the list.** Create `src/data/catalog.ts` holding roughly
+forty entries:
+
+```ts
+type CatalogEntry = {
+  id: string;          // stable slug, used for dedupe and week rotation
+  title: string;       // the publisher's title, a factual label
+  siteName: string;    // "Budget Bytes"
+  url: string;         // the canonical recipe URL
+  tags: string[];      // "weeknight", "vegetarian", "one-pot"
+  minutes: number;     // rough total time, for the browse UI
+};
+```
+
+Title, site, and URL are facts about a page, not its expressive content, so they
+belong in the repository. Do not add `description`, `ingredients`, or
+`instructions` to this type — that is the boundary above, expressed in the type
+system. A reviewer should be able to see the rule by reading the type.
+
+Draw only from the fifteen sites Section 5 measured as working:
+
+> Food Network, Delish, Taste of Home, BBC Good Food, Epicurious, Bon Appétit,
+> Food.com, King Arthur Baking, NYT Cooking, Budget Bytes, Sally's Baking,
+> RecipeTin Eats, Pinch of Yum, Love and Lemons, Minimalist Baker
+
+Skip Allrecipes, Serious Eats, Simply Recipes, and The Kitchn entirely — they
+are blocked at the CDN edge and no entry from them can ever work. Spread the
+forty across sites and across weeknight dinners, a few vegetarian, a couple of
+breakfasts, and a couple of bakes, favouring accessible ingredients.
+
+**Verify every URL before committing it.** An unverified entry is a broken
+feature, not a broken link. For each candidate, fetch it and confirm a
+`Recipe` object is present in its JSON-LD, the same way the extractor looks for
+one. A quick local check:
+
+```bash
+curl -sSL --max-time 20 -A 'Forkast/1.0' "$URL" \
+  | grep -o '"@type"[^,]*Recipe' | head -1
+```
+
+Better, exercise the real path: `netlify/lib/recipe-schema.ts` holds the
+extractor, so a small script that fetches and runs it proves the entry end to
+end. **Field-name trap, already recorded in Section 10:** the extractor returns
+`ingredientLines`, not `ingredients`. A probe reading the wrong field reports
+empty recipes and looks like a data-loss bug.
+
+Drop any candidate that fails rather than committing it hopefully.
+
+**2. Catalog UI.** A browse surface listing the catalog with title, site, time,
+and tags, and an "Add to my recipes" action per entry. Adding calls the existing
+`import-recipe` function with the entry's URL, then saves the returned draft with
+`saveRecipe`. Reuse `getRecipeDuplicateKeys` so adding the same recipe twice is a
+no-op rather than a duplicate — `recipeDuplicateKey` already keys on source URL.
+
+Respect the importer's existing limit of **10 imports per minute per uid**. Adding
+forty at once must therefore be paced or batched with visible progress, not fired
+in parallel; the CSV import screen already has a progress and error-report pattern
+worth following. Failures must be per-entry and honest: one blocked publisher
+should not fail the batch.
+
+**3. Recipes of the week.** A small rotating selection from the catalog on the
+recipes screen. Rotate deterministically from the ISO week number so both people
+in a household see the same week's picks without storing anything: index into a
+stable ordering by week, do not use `Math.random()`. Show the same "Add" action.
+
+**4. Route and navigation.** The catalog needs a route and a nav entry. The rail
+is currently four items — Recipes, Shopping, Import, Settings — and the mobile
+bottom rail is `grid-template-columns: repeat(4, 1fr)`. Adding a fifth item means
+updating that grid and re-checking one-handed reach and the 44px touch targets at
+320px. Consider instead surfacing the catalog inside the Recipes screen, which
+avoids a fifth rail item; decide with a real browser open at 390px.
+
+#### Verification
+
+- Unit-test the week rotation as a pure function of week number, and the
+  duplicate-skip behaviour. Do not write a test that fetches a publisher.
+- Confirm every committed URL extracts, once, at authoring time.
+- Drive the add flow against the emulators in a real browser at 390px and 1440px.
+- `npm run check` and `npm run test:rules` before pushing.
+
+#### Watch out for
+
+- The catalog is a live dependency: an entry breaks if a publisher moves a URL
+  or starts blocking. That is accepted. Fail honestly per Section 5, keep the
+  source URL, and offer manual entry — **never** route around a block with a
+  headless browser, proxy, or user-agent spoof. Section 5 rules those out
+  permanently.
+- Netlify Free bills 15 credits per production deploy. Batch this work; do not
+  deploy once per catalog entry.
 
 ### 14.7 Verification environment
 
