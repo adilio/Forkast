@@ -1,6 +1,6 @@
 # Forkast implementation plan
 
-Last updated: 2026-08-03
+Last updated: 2026-08-03 (second pass — see Section 14 for the work in flight)
 
 This is the implementation authority for continuing Forkast in a fresh task.
 `PRODUCT.md` is the product authority; `DESIGN.md` is the visual authority;
@@ -180,10 +180,19 @@ CSV. Supporting essentials: title/ingredient search, manual recipe CRUD, adding
 whole recipes or selected ingredients to lists, arbitrary grocery items,
 collaborative checking with poor service, Home Screen install, and full export.
 
+**Released from deferral on 2026-08-03 by the owner**, who asked for them
+directly. They are no longer gated on evidence; see Section 14 for scope and
+status.
+
+- Meal-planning calendar and turning a plan into a shopping list
+- Per-member store preferences on the shared list
+- A starter recipe catalog and a rotating "Recipes of the week"
+- Light/dark/system appearance — **shipped**, commit `608a838`
+
 **Explicitly deferred** — deferred is not rejected, but each item needs a real
 household problem to supply its acceptance criteria first:
 
-- Meal-planning calendar, saved plans, drag-and-drop
+- Drag-and-drop meal planning and saved reusable plans
 - Pantry/freezer inventory and "what can I make?" queries
 - Nutrition, macros, USDA matching, density tables
 - Price tracking, budgets, grocery-ordering integrations
@@ -592,8 +601,9 @@ complete; see the continuation checklist for order.
 
 > Continue the Forkast project in `/Users/adil/Code/Forkast`. Read `PRODUCT.md`,
 > `PLAN.md`, `README.md`, and `/Users/adil/Code/AGENTS.md` before acting. Treat
-> `PRODUCT.md` and `PLAN.md` as the product and implementation authorities. Start
-> from the continuation checklist in Section 1, respect the operational
+> `PRODUCT.md` and `PLAN.md` as the product and implementation authorities.
+> **Start from Section 14 — it is the live work — then** the continuation
+> checklist in Section 1. Respect the operational
 > invariants there, read "Operating production without a browser" in Section 10
 > before touching Firebase or production, and preserve completed work — do not
 > rebuild milestones and do
@@ -605,3 +615,162 @@ complete; see the continuation checklist for order.
 > request, never add AI or co-author attribution, and keep `main` deployable. If a
 > credential, private-data, or physical-device blocker remains, finish every
 > independent task and report the exact owner action needed.
+
+## 14. Second pass: planning, per-member routing, catalog, appearance
+
+Opened 2026-08-03 on the owner's direct instruction. Four items, taken in this
+order. Everything below reflects state at the handoff point.
+
+### 14.1 What the owner asked for
+
+1. The light/dark/system appearance control used on `adilio.ca` and `4dl.ca`.
+2. A shopping list that handles several people with different store preferences.
+3. Assigning recipes to days and turning that into a shopping list, the way Plan
+   to Eat does.
+4. A "Recipes of the week" surface, backed by roughly forty recipes sourced from
+   the top recipe sites.
+
+These override the YAGNI deferral in Section 3 for exactly these four items and
+nothing adjacent. Drag-and-drop planning, saved reusable plans, and pantry
+inventory remain deferred.
+
+### 14.2 Status
+
+| Item | State |
+| --- | --- |
+| Appearance control | **Shipped and pushed**, commit `608a838` |
+| Per-member store preferences | In progress — pure router written, not yet wired |
+| Meal plan calendar | Not started |
+| Recipe catalog and Recipes of the week | Not started; sourcing decided, see 14.6 |
+
+### 14.3 Appearance control — done
+
+`src/lib/theme.ts` holds the preference in a `useSyncExternalStore` store,
+`src/components/ThemeToggle.tsx` renders it as three real radio inputs behind
+styled labels, and a boot script in `index.html` stamps `data-theme` on `<html>`
+before first paint. The control lives in Settings. Six unit tests in
+`src/lib/theme.test.ts` cover device following, storage, live device changes,
+and a held choice ignoring them.
+
+Two invariants worth keeping:
+
+- **Never write a colour literal in a component rule.** Both themes are token
+  sets; a literal is a value that cannot flip. Type on a filled action control
+  is `--on-action`, because under low light the action green becomes a *light*
+  fill and only dark type reads on it.
+- **Theme switching suppresses transitions for one frame**
+  (`:root[data-theme-switching]`). Components animate colour to explain their
+  own state changing. A theme swap changes every colour at once and animating it
+  reads as a smear.
+
+`DESIGN.md` carries the full night palette and is the authority for it.
+
+### 14.4 Per-member store preferences — in progress
+
+**The problem.** `households/{id}/ingredientStoreRules/{key}` is one shared set
+of ingredient-to-store rules. With two people on one list, whoever last sent
+ingredients silently retrained routing for both. Where an ingredient is bought
+is a personal habit; the list itself is correctly shared.
+
+**The shape.** Routing resolves in layers, most personal first:
+
+1. `households/{id}/memberPrefs/{uid}/storeRules/{normalizedIngredientKey}`
+2. `households/{id}/ingredientStoreRules/{key}` — the pre-split household rules,
+   still **read** as an inherited baseline, no longer **written**. Nobody's
+   existing habits are discarded and no migration is needed.
+3. `households/{id}/memberPrefs/{uid}.defaultStoreId`
+4. The household's first store.
+
+`src/lib/storeRouting.ts` implements this as a pure function over plain maps,
+deliberately free of Firestore so it can be tested directly. It returns the
+reason alongside the store, because a list that reroutes without saying so reads
+as a bug the first time it disagrees with you.
+
+**Still to do.**
+
+- Firestore paths and `data.ts` accessors for `memberPrefs`, including changing
+  `rememberStore` to write the caller's own rules rather than the household's.
+- Security rules: any member may read `memberPrefs`, only `request.auth.uid ==
+  uid` may write their own, and `defaultStoreId` must reference a real store.
+  Add emulator cases for a member writing another member's preferences.
+- `RecipesPage` — route through `routeIngredient`, and retire the
+  `forkast:last-store` `localStorage` key in favour of the stored default store,
+  which also syncs across that person's devices.
+- `ShoppingPage` — open on the reader's own default store rather than the
+  hardcoded `city-market`, and write the reader's rule when an item is moved.
+- `SettingsPage` — a section to choose a default store and review or reset your
+  own routing.
+- Unit tests for the router; rules tests for the new collection.
+- Consider adding `displayName` to `households/{id}/members/{uid}`, written by
+  `bootstrap-household` and `redeem-invite`. The shared list cannot currently
+  attribute an item to a person because `users/{uid}` is only readable by that
+  user. This is what makes the list feel genuinely shared rather than merged.
+
+### 14.5 Meal plan calendar — not started
+
+Intended shape, matching how Plan to Eat is actually used:
+
+```text
+households/{householdId}/plannedMeals/{plannedMealId}
+  date              # YYYY-MM-DD, local to the household, not a timestamp
+  slot              # breakfast | lunch | dinner | other
+  recipeId
+  servings          # the planned scale, independent of the recipe's base
+  note
+  createdAt, createdBy, updatedAt, updatedBy
+```
+
+A week view with tap-to-place rather than drag-and-drop, per Section 5's
+decision queue. The plan-to-list step scales each planned recipe to its planned
+servings and routes every ingredient through `routeIngredient`, so it reuses the
+transfer path that already exists on the recipe screen rather than a second one.
+Store the date as a plain `YYYY-MM-DD` string: a timestamp makes "Tuesday" depend
+on the reader's device time zone, which is wrong for a household calendar.
+
+Open question, decide with evidence rather than up front: whether adding a
+planned week to the list should skip ingredients already on it. Combining is
+already handled for exact matches by `addIngredientToShopping`.
+
+### 14.6 Recipe catalog — not started, sourcing decided
+
+The owner asked for roughly forty recipes from the top recipe sites, noting this
+is exploratory for now.
+
+**Decision: curate URLs, import live, bundle nothing.** The catalog is a list of
+real recipe URLs on the fifteen sites Section 5 measured as working. Forkast
+fetches each through the existing `import-recipe` function on demand. Recipe
+ingredient lists are not copyrightable, but instructions and headnotes are, so
+copying publisher prose into this repository would be reproducing their content;
+importing keeps provenance and attribution intact and reuses a path that is
+already built, protected, and measured. It also means the catalog cannot ship
+anything the importer cannot handle.
+
+The cost is a live dependency: a catalog entry breaks if a publisher moves or
+starts blocking. Accept it, fail honestly per Section 5, and never route around
+a block.
+
+**Still to do.** Verify every candidate URL resolves and carries Recipe JSON-LD
+before committing it — an unverified catalog entry is a broken feature, not a
+broken link. Draw from the fifteen working sites and skip the four blocked ones
+entirely.
+
+### 14.7 Verification environment
+
+`npm run check` passes at the handoff point: typecheck, ESLint, Prettier, 35
+unit tests, production build.
+
+**The Firestore emulator does not run on this machine.** It needs a Java
+runtime and none is installed. `brew install --cask temurin` needs a sudo
+password, which a non-interactive agent cannot supply — the owner has to run it,
+for example by typing `! brew install --cask temurin` in a Claude Code session.
+Until then:
+
+- Rules tests run only in GitHub Actions, where Java exists. Treat a rules
+  change as unverified locally and watch the `rules` job.
+- Signed-in screens cannot be driven in a local browser, because sign-in needs
+  either the Auth emulator or production. The appearance work was verified
+  against the real stylesheet in Chrome by injecting the control's markup into
+  the signed-out page; that technique works for CSS but not for data flows.
+
+Do not let this block implementation. Write the unit tests, push, and let CI
+cover the rules.
