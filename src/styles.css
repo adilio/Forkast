@@ -25,6 +25,11 @@
   --danger-soft: #fbe4df;
   --focus: #176b4d;
   --shadow: 0 8px 28px rgba(24, 32, 28, 0.08);
+  --auth-scrim: rgba(24, 32, 28, 0.16);
+  --auth-photo-wash: transparent;
+  --auth-panel: rgba(255, 255, 255, 0.92);
+  --auth-panel-highlight: rgba(255, 255, 255, 0.82);
+  --auth-shadow: 0 28px 80px rgba(24, 32, 28, 0.2);
 
   /* Text that sits on a filled --action or --action-hover control. It is a
      token rather than a literal white because the night pass lightens the
@@ -90,6 +95,11 @@
   --danger-soft: #3a1e1a;
   --focus: #6bd0a7;
   --shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+  --auth-scrim: rgba(8, 12, 10, 0.52);
+  --auth-photo-wash: rgba(8, 12, 10, 0.34);
+  --auth-panel: rgba(28, 33, 29, 0.93);
+  --auth-panel-highlight: rgba(255, 255, 255, 0.09);
+  --auth-shadow: 0 28px 80px rgba(0, 0, 0, 0.48);
 
   --field-line: #4a534d;
   --placeholder: #838d87;
@@ -560,66 +570,107 @@ input:hover {
   height: 3rem;
 }
 .auth-layout {
+  position: relative;
+  isolation: isolate;
   min-height: 100vh;
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(22rem, 0.85fr);
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  padding: clamp(1.5rem, 6vw, 5.5rem);
+  overflow: hidden;
+  background-color: var(--rail);
+  background-image: url('/forkast-login.jpg');
+  background-position: center;
+  background-size: cover;
+}
+.auth-layout::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  content: '';
+  background: linear-gradient(90deg, var(--auth-scrim), var(--auth-photo-wash) 78%);
+}
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--ink);
+  font-size: 1.125rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.auth-brand img {
+  width: 2.625rem;
+  height: 2.625rem;
 }
 .auth-intro {
   display: grid;
-  align-content: center;
-  padding: clamp(2rem, 8vw, 8rem);
-  background: var(--rail);
-  border-right: 1px solid var(--line);
+  gap: 0.8rem;
+  margin-top: clamp(2.75rem, 6vh, 4.5rem);
 }
-.auth-intro img,
-.onboarding > img {
-  width: 3rem;
-  height: 3rem;
-  margin-bottom: 2.5rem;
+.auth-intro h1 {
+  max-width: 12ch;
+  margin: 0;
+  font-size: clamp(2.25rem, 4.2vw, 3.75rem);
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
 }
-.auth-intro > p:last-child,
-.onboarding > p {
-  max-width: 52ch;
+.auth-intro > p:last-child {
+  max-width: 42ch;
+  margin: 0;
   color: var(--muted);
-  font-size: 1.125rem;
-  line-height: 1.6;
+  font-size: 1rem;
+  line-height: 1.55;
 }
 .auth-panel {
   display: grid;
-  align-content: center;
-  justify-content: center;
-  padding: clamp(1.5rem, 6vw, 5rem);
-  background: var(--surface);
-}
-.auth-panel h2 {
-  font-size: 1.75rem;
+  width: min(100%, 34rem);
+  padding: clamp(1.75rem, 3.25vw, 2.75rem);
+  background: var(--auth-panel);
+  border-radius: 14px;
+  box-shadow:
+    var(--auth-shadow),
+    inset 0 1px 0 var(--auth-panel-highlight);
+  -webkit-backdrop-filter: blur(24px) saturate(1.05);
+  backdrop-filter: blur(24px) saturate(1.05);
+  animation: auth-panel-arrive 420ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .auth-panel__primary {
   display: grid;
-  gap: 0.75rem;
-  max-inline-size: 24rem;
-}
-.auth-panel__primary > p:not(.kicker, .form-message) {
-  max-width: 38ch;
-  margin: 0;
-  color: var(--muted);
-  line-height: 1.55;
+  gap: 0.9rem;
+  margin-top: clamp(2.25rem, 4.5vh, 3.25rem);
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
 }
 .onboarding label {
   display: grid;
   gap: 0.45rem;
   font-weight: 700;
 }
+.onboarding > img {
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 1.5rem;
+}
+.onboarding > p:not(.kicker, .form-message) {
+  max-width: 52ch;
+  color: var(--muted);
+  line-height: 1.6;
+}
 .auth-panel .button {
   width: 100%;
-  margin-top: 0.5rem;
 }
 .auth-panel__primary > .auth-panel__note {
-  margin-top: 0.25rem;
+  max-width: 43ch;
+  margin: 0;
+  color: var(--muted);
   font-size: 0.9375rem;
+  line-height: 1.5;
 }
 .google-button {
   gap: 0.7rem;
+  min-height: 3.25rem;
 }
 .google-mark {
   display: grid;
@@ -1675,22 +1726,42 @@ select {
     background-position: -150% 0;
   }
 }
+@keyframes auth-panel-arrive {
+  from {
+    opacity: 0.94;
+    clip-path: inset(1rem 0 0 0 round 14px);
+    transform: translateY(0.75rem);
+  }
+}
 
 @media (max-width: 760px) {
   .auth-layout {
-    grid-template-columns: 1fr;
+    align-items: flex-end;
+    min-height: 100dvh;
+    padding: clamp(10rem, 33dvh, 17rem) 0 0;
+    background-position: 71% center;
   }
-  .auth-intro {
-    min-height: 36vh;
-    padding: 2rem 1.25rem;
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
-  }
-  .auth-intro img {
-    margin-bottom: 1.25rem;
+  .auth-layout::before {
+    background: linear-gradient(0deg, var(--auth-scrim), var(--auth-photo-wash) 72%);
   }
   .auth-panel {
-    padding: 2rem 1.25rem 3rem;
+    width: 100%;
+    min-height: 59dvh;
+    padding: 1.5rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom));
+    border-radius: 14px 14px 0 0;
+    box-shadow:
+      0 -18px 54px var(--auth-scrim),
+      inset 0 1px 0 var(--auth-panel-highlight);
+  }
+  .auth-intro {
+    margin-top: 2rem;
+  }
+  .auth-intro h1 {
+    max-width: 13ch;
+    font-size: clamp(2.1rem, 10vw, 3rem);
+  }
+  .auth-panel__primary {
+    margin-top: 2rem;
   }
   .app-shell {
     display: block;
@@ -1835,6 +1906,18 @@ select {
   }
 }
 
+/* On compact landscape phones and older small iPhones, the sign-in action
+   outranks the photograph. Taller phones still keep the kitchen reveal. */
+@media (max-width: 760px) and (max-height: 700px) {
+  .auth-layout {
+    padding-top: 0;
+  }
+  .auth-panel {
+    min-height: 100dvh;
+    border-radius: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html:focus-within {
     scroll-behavior: auto;
@@ -1848,5 +1931,8 @@ select {
   }
   .theme-option {
     transition: none;
+  }
+  .auth-panel {
+    animation: none;
   }
 }

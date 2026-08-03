@@ -1,3 +1,10 @@
+/**
+ * THESIS: Signing in feels like arriving at the household kitchen, not entering a SaaS gate.
+ * OWN-WORLD: A real prep counter, cool-paper panel, graphite rules, and food-safe green actions.
+ * STORY: Forkast carries a recipe from capture through scaling to the right grocery list.
+ * FIRST VIEWPORT: One quiet sign-in sheet sits left of a lived-in kitchen planning scene.
+ * FORM: Full-bleed household still life with an operational prep ticket in the foreground.
+ */
 import { useState } from 'react';
 import { useAuth } from '../lib/auth';
 import { auth } from '../lib/firebase';
@@ -21,23 +28,22 @@ export default function AuthPage() {
   }
   return (
     <main className="auth-layout">
-      <section className="auth-intro">
-        <img src="/forkast-mark.svg" alt="" />
-        <p className="kicker">Private by default</p>
-        <h1>Recipes to groceries, without the clutter.</h1>
-        <p>
-          Save a recipe, scale it for however many you&rsquo;re feeding, and send the
-          ingredients to the store where you actually buy them.
-        </p>
-      </section>
-      <section className="auth-panel">
-        <div className="auth-panel__primary">
-          <p className="kicker">Google sign-in</p>
-          <h2>Welcome to Forkast</h2>
+      <section className="auth-panel" aria-labelledby="auth-heading">
+        <div className="auth-brand" aria-label="Forkast">
+          <img src="/forkast-mark.svg" alt="" width="42" height="42" />
+          <span>Forkast</span>
+        </div>
+
+        <div className="auth-intro">
+          <p className="kicker">Your household kitchen, in one place</p>
+          <h1 id="auth-heading">Dinner plans that make it to the store.</h1>
           <p>
-            Continue with Google to open your household or create a private one of your
-            own.
+            Save the useful part of a recipe, scale it for the table, and send every
+            ingredient to the store where you actually buy it.
           </p>
+        </div>
+
+        <div className="auth-panel__primary">
           <button
             className="button button--primary google-button"
             disabled={busy}
@@ -54,8 +60,8 @@ export default function AuthPage() {
             </p>
           )}
           <p className="auth-panel__note">
-            Forkast never asks for a password. Google confirms who you are, and your
-            household decides what you can see.
+            Private by default. Google confirms who you are; Forkast never asks for or
+            stores your password.
           </p>
         </div>
       </section>
