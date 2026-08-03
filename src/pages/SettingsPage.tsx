@@ -112,7 +112,7 @@ export default function SettingsPage() {
       <header className="page-heading">
         <p className="kicker">Household controls</p>
         <h1>Settings</h1>
-        <p>Signed in as {user?.email}</p>
+        <p>Manage your household, stores, appearance, and account.</p>
       </header>
       <section>
         <h2>Appearance</h2>
@@ -224,7 +224,11 @@ export default function SettingsPage() {
           {error}
         </p>
       )}
-      <SignOutButton />
+      <section>
+        <h2>Account</h2>
+        <p>Signed in as {user?.email}. Sign out on this device when you are done.</p>
+        <SignOutButton />
+      </section>
     </section>
   );
 }
