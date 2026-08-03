@@ -28,17 +28,12 @@ Decide these while building; they are not questions for the owner:
 
 **2. The meal plan calendar** — designed in Section 9, not started.
 
-**3. Owner-only checks**, which need a person, a phone, or private data:
-
-- Marla signs in with Google and redeems a fresh invite; both accounts then share
-  the household. An unrelated Google account gets an isolated household and
-  cannot read the first. Remove any synthetic test data afterwards.
-- Sign out and back in on a real iPhone and confirm access survives.
-- Install Forkast on both iPhones, capture three real recipe sites through the
-  Shortcut including one expected failure, open two catalog previews and add one,
-  scale a recipe, route ingredients to both stores, take one phone offline and
-  reconcile, then export everything and read the files.
-- Cook and shop from Forkast for one real week before cancelling Plan to Eat.
+Manual owner-run acceptance checks — a second Google account, real iPhone
+install and capture, a live week of cooking — were removed from this queue on
+2026-08-03 at the owner's direction. Do not reinstate them or block work on
+them. Household isolation stays covered by the emulator rules suite
+(Sections 8 and 10), which is where it was always enforced; the rest was
+confidence, not coverage.
 
 Do not commit private CSV, recipe, account, or export data. Exact account email
 addresses are deliberately not recorded here.
@@ -463,7 +458,7 @@ All of these use the service-account key from Section 2.
 | Two users overwrite list state | One document per shopping item. |
 | Offline data disappears on iOS | Firestore is the source of truth; local state is a cache; sync on foreground. |
 | A delivery-layer change silently breaks auth | Section 3 invariants; verify in a browser with the app installed. |
-| Another household's data is visible | Membership rules are authoritative; verify with a separate Google account. |
+| Another household's data is visible | Membership rules are authoritative, and the emulator suite's cross-household cases are the check. |
 | Free tiers exhausted | Portable exports, auto-recharge off, avoid Blaze. Section 12. |
 | Scope creeps ahead of usefulness | Section 5's boundary; schedule deferred work only from observed use. |
 
