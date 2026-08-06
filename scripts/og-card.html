@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Forkast OG card</title>
+    <style>
+      /* Tokens lifted verbatim from Forkast's DESIGN.md day palette, so the
+         share card and the app cannot drift apart. */
+      :root {
+        --canvas: #f4f3ee;
+        --surface: #ffffff;
+        --rail: #e9ebe5;
+        --ink: #18201c;
+        --ink-muted: #58625d;
+        --hairline: #c9cec8;
+        --action: #176b4d;
+        --soft-selected: #dcebe3;
+        --on-action: #ffffff;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 1200px;
+        height: 630px;
+      }
+
+      body {
+        display: flex;
+        align-items: center;
+        gap: 48px;
+        padding: 64px;
+        background: var(--canvas);
+        color: var(--ink);
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
+          sans-serif;
+        font-feature-settings: 'tnum' 1;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* The work surface gets a narrow perimeter rail, not a floating card
+         grid — the same composition rule the app shell follows. */
+      body::before {
+        content: '';
+        position: fixed;
+        inset: 0 0 auto 0;
+        height: 10px;
+        background: var(--action);
+      }
+
+      .pitch {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-width: 0;
+        height: 100%;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        margin-bottom: 44px;
+      }
+
+      .brand svg {
+        width: 64px;
+        height: 64px;
+        display: block;
+      }
+
+      .wordmark {
+        font-size: 38px;
+        font-weight: 650;
+        letter-spacing: -0.015em;
+      }
+
+      h1 {
+        font-size: 54px;
+        line-height: 1.1;
+        font-weight: 680;
+        letter-spacing: -0.028em;
+      }
+
+      .sub {
+        margin-top: 24px;
+        font-size: 24px;
+        line-height: 1.42;
+        color: var(--ink-muted);
+        max-width: 23ch;
+      }
+
+      .url {
+        margin-top: auto;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 22px;
+        font-weight: 560;
+        color: var(--action);
+      }
+
+      .url::before {
+        content: '';
+        width: 26px;
+        height: 3px;
+        background: var(--action);
+      }
+
+      /* A prep ticket, not a product screenshot: it shows the one loop that
+         distinguishes Forkast — scale a recipe, route its ingredients to the
+         store this household actually buys them at. */
+      .ticket {
+        width: 520px;
+        flex: none;
+        align-self: stretch;
+        background: var(--surface);
+        border: 1px solid var(--hairline);
+        border-radius: 10px;
+        padding: 34px 34px 30px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .ticket-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding-bottom: 22px;
+        border-bottom: 1px solid var(--hairline);
+      }
+
+      .recipe {
+        font-size: 25px;
+        font-weight: 620;
+        letter-spacing: -0.01em;
+        white-space: nowrap;
+      }
+
+      .servings {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        background: var(--rail);
+        border-radius: 8px;
+        padding: 8px 13px;
+        font-size: 19px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .servings .step {
+        color: var(--ink-muted);
+        font-size: 22px;
+        line-height: 1;
+      }
+
+      .rows {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .rows li {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 18px 0;
+        border-bottom: 1px solid var(--hairline);
+        font-size: 21px;
+        white-space: nowrap;
+      }
+
+      .rows li:last-child {
+        border-bottom: 0;
+      }
+
+      .check {
+        width: 22px;
+        height: 22px;
+        flex: none;
+        border: 2px solid var(--hairline);
+        border-radius: 5px;
+      }
+
+      .qty {
+        font-variant-numeric: tabular-nums;
+        font-weight: 620;
+        min-width: 82px;
+      }
+
+      .item {
+        flex: 1;
+        color: var(--ink);
+      }
+
+      /* Pills carry store choice only — the one job DESIGN.md gives them
+         besides compact status and counts. */
+      .store {
+        font-size: 17px;
+        font-weight: 600;
+        padding: 6px 13px;
+        border-radius: 999px;
+        white-space: nowrap;
+      }
+
+      .store.market {
+        background: var(--soft-selected);
+        color: var(--action);
+      }
+
+      .store.costco {
+        background: var(--rail);
+        color: var(--ink-muted);
+      }
+
+      .ticket-foot {
+        margin-top: auto;
+        padding-top: 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 19px;
+        color: var(--ink-muted);
+      }
+
+      .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 999px;
+        background: var(--action);
+        flex: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="pitch">
+      <div class="brand">
+        <svg viewBox="0 0 64 64" role="img" aria-label="Forkast">
+          <rect width="64" height="64" rx="12" fill="#176b4d" />
+          <path
+            d="M20 13v15m8-15v15m-8 0h8m-4 0v23m20-38c0 8-1 13-7 17v21"
+            fill="none"
+            stroke="#fff"
+            stroke-width="5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <span class="wordmark">Forkast</span>
+      </div>
+
+      <h1>Capture a recipe. Scale it. Shop it.</h1>
+      <p class="sub">Private household recipes and store-aware shopping lists.</p>
+
+      <div class="url">forkast.4dl.ca</div>
+    </div>
+
+    <div class="ticket">
+      <div class="ticket-head">
+        <span class="recipe">Weeknight chili</span>
+        <span class="servings">
+          <span class="step">&minus;</span>
+          <span>6 servings</span>
+          <span class="step">+</span>
+        </span>
+      </div>
+
+      <ul class="rows">
+        <li>
+          <span class="check"></span>
+          <span class="qty">680 g</span>
+          <span class="item">ground beef</span>
+          <span class="store costco">Costco</span>
+        </li>
+        <li>
+          <span class="check"></span>
+          <span class="qty">2 tins</span>
+          <span class="item">kidney beans</span>
+          <span class="store market">City Market</span>
+        </li>
+        <li>
+          <span class="check"></span>
+          <span class="qty">500 ml</span>
+          <span class="item">crushed tomatoes</span>
+          <span class="store costco">Costco</span>
+        </li>
+        <li>
+          <span class="check"></span>
+          <span class="qty">1 tbsp</span>
+          <span class="item">smoked paprika</span>
+          <span class="store market">City Market</span>
+        </li>
+        <li>
+          <span class="check"></span>
+          <span class="qty">2</span>
+          <span class="item">yellow onions</span>
+          <span class="store market">City Market</span>
+        </li>
+      </ul>
+
+      <div class="ticket-foot">
+        <span class="dot"></span>
+        Ingredients remember their store
+      </div>
+    </div>
+  </body>
+</html>
